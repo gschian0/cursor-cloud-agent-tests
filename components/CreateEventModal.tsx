@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 
 interface CreateEventModalProps {
@@ -9,6 +9,8 @@ interface CreateEventModalProps {
   onSubmit: (event: EventFormData) => Promise<void>
   initialStart?: Date
   initialEnd?: Date
+  initialData?: Partial<EventFormData>
+  isEdit?: boolean
 }
 
 export interface EventFormData {
@@ -27,17 +29,70 @@ export default function CreateEventModal({
   onSubmit,
   initialStart,
   initialEnd,
+  initialData,
+  isEdit = false,
 }: CreateEventModalProps) {
   const [loading, setLoading] = useState(false)
+  
+  // Helper to format date for datetime-local input
+  const formatDateTimeLocal = (date: Date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+  
   const [formData, setFormData] = useState<EventFormData>({
-    title: '',
-    description: '',
-    startTime: initialStart ? initialStart.toISOString().slice(0, 16) : '',
-    endTime: initialEnd ? initialEnd.toISOString().slice(0, 16) : '',
-    location: '',
-    color: '#3b82f6',
-    allDay: false,
+    title: initialData?.title || '',
+    description: initialData?.description || '',
+    startTime: initialData?.startTime || (initialStart ? formatDateTimeLocal(initialStart) : ''),
+    endTime: initialData?.endTime || (initialEnd ? formatDateTimeLocal(initialEnd) : ''),
+    location: initialData?.location || '',
+    color: initialData?.color || '#3b82f6',
+    allDay: initialData?.allDay || false,
   })
+
+  // Reset form when modal opens/closes or when initial values change
+  useEffect(() => {
+    if (isOpen) {
+      if (isEdit && initialData) {
+        // Edit mode - use initialData
+        setFormData({
+          title: initialData.title || '',
+          description: initialData.description || '',
+          startTime: initialData.startTime || '',
+          endTime: initialData.endTime || '',
+          location: initialData.location || '',
+          color: initialData.color || '#3b82f6',
+          allDay: initialData.allDay || false,
+        })
+      } else if (initialStart && initialEnd) {
+        // New event with selected slot - use initialStart/initialEnd
+        setFormData({
+          title: '',
+          description: '',
+          startTime: formatDateTimeLocal(initialStart),
+          endTime: formatDateTimeLocal(initialEnd),
+          location: '',
+          color: '#3b82f6',
+          allDay: false,
+        })
+      } else {
+        // New event without selected slot - reset to empty
+        setFormData({
+          title: '',
+          description: '',
+          startTime: '',
+          endTime: '',
+          location: '',
+          color: '#3b82f6',
+          allDay: false,
+        })
+      }
+    }
+  }, [isOpen, isEdit, initialData, initialStart, initialEnd])
 
   if (!isOpen) return null
 
@@ -46,15 +101,6 @@ export default function CreateEventModal({
     setLoading(true)
     try {
       await onSubmit(formData)
-      setFormData({
-        title: '',
-        description: '',
-        startTime: '',
-        endTime: '',
-        location: '',
-        color: '#3b82f6',
-        allDay: false,
-      })
       onClose()
     } catch (error) {
       console.error('Failed to create event:', error)
@@ -67,7 +113,7 @@ export default function CreateEventModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
         <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-2xl font-bold">Create Event</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{isEdit ? 'Edit Event' : 'Create Event'}</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
@@ -199,7 +245,7 @@ export default function CreateEventModal({
               disabled={loading}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? 'Creating...' : 'Create Event'}
+              {loading ? (isEdit ? 'Updating...' : 'Creating...') : (isEdit ? 'Update Event' : 'Create Event')}
             </button>
           </div>
         </form>

@@ -12,11 +12,14 @@ A complete, production-ready calendar and CRM application with the following fea
 
 1. **Smart Calendar System**
    - Full calendar interface with month, week, day, and agenda views
-   - Create, edit, and view events
+   - Create, edit, and delete events
+   - Click on empty days to quickly create events (auto-fills date)
+   - Click on events to view details in a beautiful modal
    - Color-coded events for easy organization
    - All-day event support
    - Event descriptions, locations, and time slots
-   - Interactive calendar with drag-and-drop slot selection
+   - Interactive calendar with improved text readability
+   - Event details modal with edit and delete functionality
 
 2. **Integrated CRM**
    - Complete contact management system
@@ -27,12 +30,13 @@ A complete, production-ready calendar and CRM application with the following fea
    - Search and filter capabilities
 
 3. **Authentication & Security**
-   - NextAuth.js v5 implementation
-   - Google OAuth integration
-   - GitHub OAuth integration
-   - Secure session management
-   - User-specific data isolation
-   - Protected API routes
+   - NextAuth.js v5 implementation (currently disabled for testing)
+   - Google OAuth integration (configured but disabled)
+   - GitHub OAuth integration (configured but disabled)
+   - Test user system for development/testing
+   - Secure session management (ready to enable)
+   - User-specific data isolation (ready to enable)
+   - Protected API routes (ready to enable)
 
 4. **Email Notifications**
    - Resend integration for transactional emails
@@ -61,8 +65,9 @@ A complete, production-ready calendar and CRM application with the following fea
 
 ### Backend
 - **Next.js API Routes** - Serverless API endpoints
-- **PostgreSQL** - Robust relational database
+- **PostgreSQL** - Robust relational database (Neon recommended)
 - **Prisma 7.2.0** - Next-generation ORM with full TypeScript support
+- **Neon Database** - Serverless PostgreSQL optimized for modern apps
 
 ### Authentication
 - **NextAuth.js v5** - Complete authentication solution
@@ -88,13 +93,15 @@ cursor-cloud-agent-tests/
 │   └── globals.css              # Global styles + calendar styles
 ├── components/                   # Reusable React components
 │   ├── Calendar.tsx             # Calendar component
-│   ├── CreateEventModal.tsx    # Event creation modal
-│   ├── CreateContactModal.tsx  # Contact creation modal
+│   ├── CreateEventModal.tsx     # Event creation/editing modal
+│   ├── EventDetailsModal.tsx    # Event details view with edit/delete
+│   ├── CreateContactModal.tsx   # Contact creation modal
 │   └── ContactsList.tsx         # Contacts list view
 ├── lib/                         # Utility libraries
 │   ├── auth.ts                  # NextAuth configuration
-│   ├── db.ts                    # Prisma client with PG adapter
+│   ├── db.ts                    # Prisma client with Neon/PG adapter
 │   ├── email.ts                 # Resend email utilities
+│   ├── test-user.ts             # Test user helper (for development)
 │   └── utils.ts                 # Helper functions
 ├── prisma/                      # Database
 │   └── schema.prisma            # Database schema
@@ -138,10 +145,10 @@ cursor-cloud-agent-tests/
 ## 🔧 Configuration Files
 
 ### Environment Variables (.env.example)
-- Database connection (PostgreSQL)
+- Database connection (Neon PostgreSQL recommended)
 - NextAuth configuration
-- OAuth credentials (Google, GitHub)
-- Resend API configuration
+- OAuth credentials (Google, GitHub - optional, currently disabled)
+- Resend API configuration (optional)
 
 ### Build Configuration
 - TypeScript strict mode enabled
@@ -173,11 +180,11 @@ Route (app)
 
 ## 🚀 Deployment Ready
 
-### Vercel (Recommended)
+### Vercel + Neon (Recommended)
 - Auto-deployment configured
 - Environment variables required
-- PostgreSQL database needed
-- OAuth callbacks configured
+- Neon PostgreSQL database (free tier available)
+- OAuth callbacks configured (when auth is enabled)
 
 ### Alternative Platforms
 - Railway
@@ -195,25 +202,36 @@ Three comprehensive documentation files provided:
 
 ## 🎯 Next Steps for Users
 
-1. **Set up OAuth Credentials**
-   - Create Google OAuth app
-   - Create GitHub OAuth app
-   - Add credentials to .env
+1. **Set up Neon Database**
+   - Sign up at [Neon](https://neon.tech) (free tier available)
+   - Create a new project
+   - Copy connection string to `.env.local` as `DATABASE_URL`
+   - **Note**: Do not enable Neon's built-in auth
 
-2. **Set up Database**
-   - Create PostgreSQL database
-   - Update DATABASE_URL in .env
+2. **Configure Environment**
+   - Copy `.env.example` to `.env.local`
+   - Add your `DATABASE_URL` from Neon
+   - Generate `NEXTAUTH_SECRET` with `openssl rand -base64 32`
+   - Set `NEXTAUTH_URL` to `http://localhost:3000` (or your deployment URL)
+
+3. **Initialize Database**
+   - Run `npx prisma generate`
    - Run `npx prisma db push`
 
-3. **Configure Resend**
+4. **Optional: Set up OAuth** (when re-enabling authentication)
+   - Create Google OAuth app at [Google Cloud Console](https://console.cloud.google.com/)
+   - Create GitHub OAuth app at [GitHub Developer Settings](https://github.com/settings/developers)
+   - Add credentials to `.env.local`
+
+5. **Optional: Configure Resend**
    - Sign up for Resend account
    - Get API key
-   - Add to .env
+   - Add to `.env.local`
 
-4. **Deploy**
+6. **Deploy**
    - Push to GitHub
    - Connect to Vercel
-   - Add environment variables
+   - Add environment variables (especially `DATABASE_URL` from Neon)
    - Deploy!
 
 ## 🌟 Key Highlights
@@ -241,11 +259,14 @@ The application is designed to be easily extended with:
 
 ## 📝 Notes
 
-- Uses Prisma 7 with PostgreSQL adapter pattern (important for compatibility)
-- NextAuth v5 beta is stable and production-ready
+- Uses Prisma 7 with PostgreSQL adapter pattern (optimized for Neon)
+- NextAuth v5 beta is stable and production-ready (currently disabled for testing)
 - System fonts used to avoid Google Fonts dependency in builds
-- All API routes are protected with authentication
+- API routes use test user system (authentication can be re-enabled)
 - Database queries use Prisma Client for type safety
+- Event details modal allows viewing, editing, and deleting events
+- Click on empty days to quickly create events with pre-filled dates
+- Improved text readability and contrast throughout the UI
 
 ---
 

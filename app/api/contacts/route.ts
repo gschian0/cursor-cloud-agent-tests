@@ -1,18 +1,15 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { getTestUserId } from '@/lib/test-user'
 
 export async function GET() {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Auth temporarily disabled for testing
+    const userId = await getTestUserId()
 
     const contacts = await prisma.contact.findMany({
       where: {
-        userId: session.user.id,
+        userId,
       },
       orderBy: {
         createdAt: 'desc',
@@ -28,11 +25,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Auth temporarily disabled for testing
+    const userId = await getTestUserId()
 
     const body = await request.json()
     const { firstName, lastName, email, phone, company, position, notes, tags } = body
@@ -51,7 +45,7 @@ export async function POST(request: Request) {
         position,
         notes,
         tags: tags || [],
-        userId: session.user.id,
+        userId,
       },
     })
 

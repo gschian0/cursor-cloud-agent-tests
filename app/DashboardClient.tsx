@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Calendar as CalendarIcon, Users, Plus, LogOut } from 'lucide-react'
 import CalendarComponent from '@/components/Calendar'
 import CreateEventModal, { type EventFormData } from '@/components/CreateEventModal'
+import EventDetailsModal from '@/components/EventDetailsModal'
 import CreateContactModal, { type ContactFormData } from '@/components/CreateContactModal'
 import ContactsList from '@/components/ContactsList'
 
@@ -40,6 +41,8 @@ export default function DashboardClient() {
   const [events, setEvents] = useState<Event[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
   const [showEventModal, setShowEventModal] = useState(false)
+  const [showEventDetailsModal, setShowEventDetailsModal] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [showContactModal, setShowContactModal] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -84,9 +87,54 @@ export default function DashboardClient() {
         const newEvent = await response.json()
         setEvents([...events, newEvent])
         setSelectedSlot(null)
+        await loadData() // Reload to get fresh data
       }
     } catch (error) {
       console.error('Failed to create event:', error)
+    }
+  }
+
+  const handleUpdateEvent = async (eventId: string, eventData: EventFormData) => {
+    try {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventData),
+      })
+
+      if (response.ok) {
+        await loadData() // Reload to get fresh data
+      } else {
+        throw new Error('Failed to update event')
+      }
+    } catch (error) {
+      console.error('Failed to update event:', error)
+      throw error
+    }
+  }
+
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        await loadData() // Reload to get fresh data
+      } else {
+        throw new Error('Failed to delete event')
+      }
+    } catch (error) {
+      console.error('Failed to delete event:', error)
+      throw error
+    }
+  }
+
+  const handleSelectEvent = (event: { id: string; title: string; start: Date; end: Date; description?: string; location?: string; color?: string; allDay?: boolean }) => {
+    const fullEvent = events.find(e => e.id === event.id)
+    if (fullEvent) {
+      setSelectedEvent(fullEvent)
+      setShowEventDetailsModal(true)
     }
   }
 
@@ -108,7 +156,23 @@ export default function DashboardClient() {
   }
 
   const handleSelectSlot = (slotInfo: { start: Date; end: Date }) => {
-    setSelectedSlot(slotInfo)
+    // When clicking on a day, set start to beginning of day and end to 1 hour later
+    const start = new Date(slotInfo.start)
+    const end = new Date(slotInfo.end || slotInfo.start)
+    
+    // If clicking on a day without specific time (month view), set default times
+    // Check if it's at midnight (likely a day click rather than time slot click)
+    if (start.getHours() === 0 && start.getMinutes() === 0 && start.getSeconds() === 0) {
+      start.setHours(9, 0, 0, 0) // Default to 9 AM
+      end.setTime(start.getTime())
+      end.setHours(start.getHours() + 1) // Default to 1 hour duration
+    } else if (start.getTime() === end.getTime() || !slotInfo.end) {
+      // If start and end are the same, add 1 hour
+      end.setTime(start.getTime())
+      end.setHours(start.getHours() + 1)
+    }
+    
+    setSelectedSlot({ start, end })
     setShowEventModal(true)
   }
 
@@ -124,7 +188,8 @@ export default function DashboardClient() {
   }))
 
   const handleSignOut = async () => {
-    window.location.href = '/api/auth/signout'
+    // Auth temporarily disabled - just reload for now
+    window.location.reload()
   }
 
   if (loading) {
@@ -206,6 +271,7 @@ export default function DashboardClient() {
             <CalendarComponent
               events={calendarEvents}
               onSelectSlot={handleSelectSlot}
+              onSelectEvent={handleSelectEvent}
             />
           </div>
         ) : (
@@ -235,6 +301,17 @@ export default function DashboardClient() {
         onSubmit={handleCreateEvent}
         initialStart={selectedSlot?.start}
         initialEnd={selectedSlot?.end}
+      />
+
+      <EventDetailsModal
+        isOpen={showEventDetailsModal}
+        event={selectedEvent}
+        onClose={() => {
+          setShowEventDetailsModal(false)
+          setSelectedEvent(null)
+        }}
+        onEdit={handleUpdateEvent}
+        onDelete={handleDeleteEvent}
       />
 
       <CreateContactModal

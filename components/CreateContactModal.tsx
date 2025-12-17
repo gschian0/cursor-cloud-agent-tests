@@ -82,7 +82,7 @@ export default function CreateContactModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white">
-          <h2 className="text-2xl font-bold">Add Contact</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Add Contact</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"

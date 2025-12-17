@@ -1,18 +1,15 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { getTestUserId } from '@/lib/test-user'
 
 export async function GET() {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Auth temporarily disabled for testing
+    const userId = await getTestUserId()
 
     const events = await prisma.event.findMany({
       where: {
-        userId: session.user.id,
+        userId,
       },
       include: {
         contact: true,
@@ -31,11 +28,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Auth temporarily disabled for testing
+    const userId = await getTestUserId()
 
     const body = await request.json()
     const { title, description, startTime, endTime, location, color, allDay, contactId } = body
@@ -53,7 +47,7 @@ export async function POST(request: Request) {
         location,
         color: color || '#3b82f6',
         allDay: allDay || false,
-        userId: session.user.id,
+        userId,
         contactId: contactId || null,
       },
       include: {

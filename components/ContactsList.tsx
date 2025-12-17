@@ -21,10 +21,10 @@ interface ContactsListProps {
 export default function ContactsList({ contacts }: ContactsListProps) {
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
-      <h2 className="text-2xl font-bold mb-4">Contacts</h2>
+      <h2 className="text-2xl font-bold text-gray-900 mb-4">Contacts</h2>
       
       {contacts.length === 0 ? (
-        <p className="text-gray-500 text-center py-8">
+        <p className="text-gray-700 text-center py-8">
           No contacts yet. Add your first contact!
         </p>
       ) : (
@@ -36,33 +36,33 @@ export default function ContactsList({ contacts }: ContactsListProps) {
             >
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
                     {contact.firstName} {contact.lastName}
                   </h3>
                   
-                  <div className="mt-2 space-y-1">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Mail className="w-4 h-4 mr-2" />
+                  <div className="mt-2 space-y-1.5">
+                    <div className="flex items-center text-sm text-gray-800">
+                      <Mail className="w-4 h-4 mr-2 text-gray-600" />
                       {contact.email}
                     </div>
                     
                     {contact.phone && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Phone className="w-4 h-4 mr-2" />
+                      <div className="flex items-center text-sm text-gray-800">
+                        <Phone className="w-4 h-4 mr-2 text-gray-600" />
                         {contact.phone}
                       </div>
                     )}
                     
                     {contact.company && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Building className="w-4 h-4 mr-2" />
+                      <div className="flex items-center text-sm text-gray-800">
+                        <Building className="w-4 h-4 mr-2 text-gray-600" />
                         {contact.company}
                       </div>
                     )}
                     
                     {contact.position && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Briefcase className="w-4 h-4 mr-2" />
+                      <div className="flex items-center text-sm text-gray-800">
+                        <Briefcase className="w-4 h-4 mr-2 text-gray-600" />
                         {contact.position}
                       </div>
                     )}
@@ -82,7 +82,7 @@ export default function ContactsList({ contacts }: ContactsListProps) {
                   )}
 
                   {contact.notes && (
-                    <p className="mt-3 text-sm text-gray-600 line-clamp-2">
+                    <p className="mt-3 text-sm text-gray-800 line-clamp-2">
                       {contact.notes}
                     </p>
                   )}

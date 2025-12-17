@@ -4,21 +4,23 @@ A modern, AI-assisted calendar application built with Next.js 14, featuring inte
 
 ## 🚀 Features
 
-- **Smart Calendar Management**: Create, view, and manage events with an intuitive calendar interface
+- **Smart Calendar Management**: Create, view, edit, and delete events with an intuitive calendar interface
+- **Event Details Modal**: Click any event to view full details and edit or delete
+- **Day Click Creation**: Click on any empty day to quickly create an event starting on that day
 - **Integrated CRM**: Track contacts with detailed information including company, position, and custom tags
-- **Email Notifications**: Automated event reminders using Resend
-- **Modern Authentication**: Secure sign-in with Google and GitHub OAuth
-- **Beautiful UI**: Responsive design with Tailwind CSS and modern components
-- **Database-Powered**: PostgreSQL database with Prisma ORM
+- **Email Notifications**: Automated event reminders using Resend (optional)
+- **Modern Authentication**: Secure sign-in with Google and GitHub OAuth (optional - currently disabled for testing)
+- **Beautiful UI**: Responsive design with Tailwind CSS and modern components with improved readability
+- **Database-Powered**: PostgreSQL database with Prisma ORM (optimized for Neon)
 - **TypeScript**: Full type safety across the application
 
 ## 🛠️ Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
+- **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
-- **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: NextAuth.js v5 (beta)
-- **Email**: Resend
+- **Database**: PostgreSQL with Prisma ORM (Neon recommended)
+- **Authentication**: NextAuth.js v5 (optional - currently disabled for testing)
+- **Email**: Resend (optional)
 - **Styling**: Tailwind CSS v4
 - **Calendar UI**: react-big-calendar
 - **Icons**: Lucide React
@@ -27,7 +29,7 @@ A modern, AI-assisted calendar application built with Next.js 14, featuring inte
 
 Before you begin, ensure you have the following installed:
 - Node.js 20.x or higher
-- PostgreSQL database
+- A Neon database account (free tier available) or any PostgreSQL database
 - npm or yarn
 
 ## 🏃 Getting Started
@@ -45,33 +47,43 @@ cd cursor-cloud-agent-tests
 npm install
 ```
 
-### 3. Set up environment variables
+### 3. Set up Neon Database (Recommended)
 
-Copy the example environment file and update with your credentials:
+1. Sign up for a free account at [Neon](https://neon.tech)
+2. Create a new project
+3. Copy your connection string (it will look like: `postgresql://user:password@ep-xxx.region.aws.neon.tech/dbname?sslmode=require`)
+4. **Note**: Do not enable Neon's built-in auth - this app uses NextAuth for authentication
+
+### 4. Set up environment variables
+
+Create a `.env.local` file (or copy from `.env.example`):
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
 
-Update the following in your `.env` file:
-
-- **DATABASE_URL**: Your PostgreSQL connection string
+**Required variables:**
+- **DATABASE_URL**: Your Neon connection string
 - **NEXTAUTH_SECRET**: Generate with `openssl rand -base64 32`
 - **NEXTAUTH_URL**: Your application URL (http://localhost:3000 for development)
-- **Google OAuth**: Create credentials at [Google Cloud Console](https://console.cloud.google.com/)
-- **GitHub OAuth**: Create an OAuth app at [GitHub Developer Settings](https://github.com/settings/developers)
-- **Resend API**: Get your API key from [Resend Dashboard](https://resend.com/)
 
-### 4. Set up the database
+**Optional variables** (for full functionality):
+- **GOOGLE_CLIENT_ID** & **GOOGLE_CLIENT_SECRET**: For Google OAuth (currently disabled for testing)
+- **GITHUB_ID** & **GITHUB_SECRET**: For GitHub OAuth (currently disabled for testing)
+- **RESEND_API_KEY** & **RESEND_FROM_EMAIL**: For email notifications
 
-Generate Prisma client and run migrations:
+### 5. Set up the database
+
+Generate Prisma client and push the schema to your Neon database:
 
 ```bash
 npx prisma generate
 npx prisma db push
 ```
 
-### 5. Run the development server
+This will create all necessary tables in your database.
+
+### 6. Run the development server
 
 ```bash
 npm run dev
@@ -94,14 +106,16 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 │   ├── layout.tsx         # Root layout
 │   └── globals.css        # Global styles
 ├── components/
-│   ├── Calendar.tsx       # Calendar component
-│   ├── CreateEventModal.tsx
-│   ├── CreateContactModal.tsx
-│   └── ContactsList.tsx
+│   ├── Calendar.tsx           # Calendar component
+│   ├── CreateEventModal.tsx   # Create/Edit event modal
+│   ├── EventDetailsModal.tsx  # Event details and actions
+│   ├── CreateContactModal.tsx # Contact creation modal
+│   └── ContactsList.tsx      # Contacts list view
 ├── lib/
 │   ├── auth.ts           # NextAuth configuration
-│   ├── db.ts             # Prisma client
+│   ├── db.ts             # Prisma client with Neon adapter
 │   ├── email.ts          # Resend email utilities
+│   ├── test-user.ts      # Test user helper (for development)
 │   └── utils.ts          # Utility functions
 └── prisma/
     └── schema.prisma     # Database schema
@@ -111,9 +125,10 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Calendar
 - Monthly, weekly, and daily views
-- Drag and drop event creation
-- Color-coded events
-- Event details modal
+- Click on empty days to create events (auto-fills date)
+- Click on events to view details, edit, or delete
+- Color-coded events with improved readability
+- Event details modal with full information display
 
 ### CRM Contacts
 - Contact management with full details
@@ -128,10 +143,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## 🔒 Authentication
 
-The application uses NextAuth.js with support for:
-- Google OAuth
-- GitHub OAuth
-- Email/password (can be added)
+**Note**: Authentication is currently disabled for testing purposes. The app uses a test user account for all operations.
+
+The application includes NextAuth.js v5 setup with support for:
+- Google OAuth (configured but disabled)
+- GitHub OAuth (configured but disabled)
+
+To re-enable authentication, update the API routes in `app/api/events/route.ts` and `app/api/contacts/route.ts` to use session-based auth instead of the test user.
 
 ## 🗄️ Database Schema
 
@@ -150,12 +168,17 @@ Email notifications are sent using Resend for:
 
 ## 🚀 Deployment
 
-### Vercel (Recommended)
+### Vercel + Neon (Recommended)
 
-1. Push your code to GitHub
-2. Import your repository in Vercel
-3. Add environment variables
-4. Deploy!
+1. Create a Neon database (if you haven't already)
+2. Push your code to GitHub
+3. Import your repository in Vercel
+4. Add environment variables:
+   - `DATABASE_URL` (from Neon)
+   - `NEXTAUTH_SECRET` (generate with `openssl rand -base64 32`)
+   - `NEXTAUTH_URL` (your Vercel deployment URL)
+   - Optional: OAuth credentials and Resend API key
+5. Deploy!
 
 ### Other Platforms
 

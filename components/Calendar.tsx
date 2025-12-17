@@ -66,10 +66,14 @@ export default function CalendarComponent({
       const style = {
         backgroundColor: event.color || '#3b82f6',
         borderRadius: '5px',
-        opacity: 0.9,
+        opacity: 1,
         color: 'white',
         border: '0px',
         display: 'block',
+        fontWeight: '500',
+        fontSize: '13px',
+        padding: '4px 8px',
+        textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
       }
       return {
         style,
