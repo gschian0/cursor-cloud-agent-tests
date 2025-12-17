@@ -1,6 +1,12 @@
-import DashboardClient from './DashboardClient'
+import DashboardClient from "./DashboardClient"
+import { auth } from "@/lib/auth"
+import { redirect } from "next/navigation"
 
 export default async function Home() {
-  // Auth temporarily disabled for testing
+  const session = await auth()
+  if (!session) {
+    redirect("/auth/signin")
+  }
+
   return <DashboardClient />
 }
