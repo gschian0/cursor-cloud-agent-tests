@@ -1,0 +1,28 @@
+# Cursor Rules for cursor-cloud-agent-tests
+
+## Project Overview
+This is a test repository for Cursor cloud agent functionality. It is designed to validate and test the integration between Cursor IDE and cloud-based AI agents.
+
+## General Guidelines
+- Keep code simple and well-documented
+- Follow best practices for the specific language/framework being tested
+- Include clear comments explaining test scenarios
+- Maintain consistency across test files
+
+## Testing Standards
+- Write clear and descriptive test names
+- Include both positive and negative test cases
+- Document expected behaviors
+- Keep tests isolated and independent
+
+## Code Style
+- Use meaningful variable and function names
+- Keep functions small and focused
+- Add comments for complex logic
+- Follow language-specific conventions
+
+## AI Assistant Behavior
+- Provide context-aware suggestions
+- Help maintain code quality and consistency
+- Suggest improvements and optimizations
+- Assist with debugging and troubleshooting

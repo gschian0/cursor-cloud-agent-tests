@@ -1,0 +1,41 @@
+# Cursor Ignore File
+# Files and directories that Cursor should ignore when providing context
+
+# Git
+.git/
+.gitignore
+
+# Dependencies
+node_modules/
+vendor/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Build artifacts
+*.pyc
+*.pyo
+__pycache__/
+*.class
+*.o
+*.so
