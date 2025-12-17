@@ -1,6 +1,6 @@
 'use client'
 
-import { Mail, Phone, Building, Briefcase, MoreVertical } from 'lucide-react'
+import { Mail, Phone, Building, Briefcase } from 'lucide-react'
 
 interface Contact {
   id: string
@@ -16,9 +16,10 @@ interface Contact {
 
 interface ContactsListProps {
   contacts: Contact[]
+  onContactSelect?: (contact: Contact) => void
 }
 
-export default function ContactsList({ contacts }: ContactsListProps) {
+export default function ContactsList({ contacts, onContactSelect }: ContactsListProps) {
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <h2 className="text-2xl font-bold text-gray-900 mb-4">Contacts</h2>
@@ -32,7 +33,8 @@ export default function ContactsList({ contacts }: ContactsListProps) {
           {contacts.map((contact) => (
             <div
               key={contact.id}
-              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => onContactSelect?.(contact)}
             >
               <div className="flex justify-between items-start">
                 <div className="flex-1">
@@ -87,10 +89,6 @@ export default function ContactsList({ contacts }: ContactsListProps) {
                     </p>
                   )}
                 </div>
-
-                <button className="text-gray-400 hover:text-gray-600">
-                  <MoreVertical className="w-5 h-5" />
-                </button>
               </div>
             </div>
           ))}

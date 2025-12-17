@@ -7,6 +7,7 @@ import CalendarComponent from '@/components/Calendar'
 import CreateEventModal, { type EventFormData } from '@/components/CreateEventModal'
 import EventDetailsModal from '@/components/EventDetailsModal'
 import CreateContactModal, { type ContactFormData } from '@/components/CreateContactModal'
+import ContactDetailsModal from '@/components/ContactDetailsModal'
 import ContactsList from '@/components/ContactsList'
 import AiAssistant from '@/components/AiAssistant'
 
@@ -47,6 +48,8 @@ export default function DashboardClient() {
   const [showEventDetailsModal, setShowEventDetailsModal] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [showContactModal, setShowContactModal] = useState(false)
+  const [showContactDetailsModal, setShowContactDetailsModal] = useState(false)
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -76,6 +79,32 @@ export default function DashboardClient() {
       console.error('Failed to load data:', error)
     } finally {
       setLoading(false)
+    }
+  }, [])
+
+  // Silent refresh that doesn't show loading state
+  const refreshData = useCallback(async () => {
+    try {
+      const [eventsRes, contactsRes] = await Promise.all([
+        fetch('/api/events'),
+        fetch('/api/contacts'),
+      ])
+
+      if (eventsRes.status === 401 || contactsRes.status === 401) {
+        return // Don't redirect on silent refresh
+      }
+
+      if (eventsRes.ok) {
+        const eventsData = await eventsRes.json()
+        setEvents(eventsData)
+      }
+
+      if (contactsRes.ok) {
+        const contactsData = await contactsRes.json()
+        setContacts(contactsData)
+      }
+    } catch (error) {
+      console.error('Failed to refresh data:', error)
     }
   }, [])
 
@@ -160,12 +189,52 @@ export default function DashboardClient() {
       })
 
       if (response.ok) {
-        const newContact = await response.json()
-        setContacts([newContact, ...contacts])
+        await refreshData() // Refresh to get fresh data
       }
     } catch (error) {
       console.error('Failed to create contact:', error)
     }
+  }
+
+  const handleUpdateContact = async (contactId: string, contactData: ContactFormData) => {
+    try {
+      const response = await fetch(`/api/contacts/${contactId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contactData),
+      })
+
+      if (response.ok) {
+        await refreshData() // Refresh to get fresh data
+      } else {
+        throw new Error('Failed to update contact')
+      }
+    } catch (error) {
+      console.error('Failed to update contact:', error)
+      throw error
+    }
+  }
+
+  const handleDeleteContact = async (contactId: string) => {
+    try {
+      const response = await fetch(`/api/contacts/${contactId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        await refreshData() // Refresh to get fresh data
+      } else {
+        throw new Error('Failed to delete contact')
+      }
+    } catch (error) {
+      console.error('Failed to delete contact:', error)
+      throw error
+    }
+  }
+
+  const handleSelectContact = (contact: Contact) => {
+    setSelectedContact(contact)
+    setShowContactDetailsModal(true)
   }
 
   const handleSelectSlot = (slotInfo: { start: Date; end: Date }) => {
@@ -314,10 +383,25 @@ export default function DashboardClient() {
                 Add Contact
               </button>
             </div>
-            <ContactsList contacts={contacts} />
+            <ContactsList 
+              contacts={contacts} 
+              onContactSelect={handleSelectContact}
+            />
           </div>
         ) : (
-          <AiAssistant events={events} contacts={contacts} />
+          <AiAssistant 
+            events={events} 
+            contacts={contacts} 
+            onDataChange={refreshData}
+            onEventSelect={(event) => {
+              handleSelectEvent(event)
+              setActiveTab('calendar')
+            }}
+            onContactSelect={(contact) => {
+              handleSelectContact(contact)
+              setActiveTab('contacts')
+            }}
+          />
         )}
       </main>
 
@@ -348,6 +432,17 @@ export default function DashboardClient() {
         isOpen={showContactModal}
         onClose={() => setShowContactModal(false)}
         onSubmit={handleCreateContact}
+      />
+
+      <ContactDetailsModal
+        isOpen={showContactDetailsModal}
+        contact={selectedContact}
+        onClose={() => {
+          setShowContactDetailsModal(false)
+          setSelectedContact(null)
+        }}
+        onEdit={handleUpdateContact}
+        onDelete={handleDeleteContact}
       />
     </div>
   )

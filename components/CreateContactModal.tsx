@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Mail, Phone, Building, Briefcase, Tag } from 'lucide-react'
 
 interface CreateContactModalProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (contact: ContactFormData) => Promise<void>
+  initialData?: Partial<ContactFormData>
+  isEdit?: boolean
 }
 
 export interface ContactFormData {
@@ -24,19 +26,37 @@ export default function CreateContactModal({
   isOpen,
   onClose,
   onSubmit,
+  initialData,
+  isEdit = false,
 }: CreateContactModalProps) {
   const [loading, setLoading] = useState(false)
   const [tagInput, setTagInput] = useState('')
   const [formData, setFormData] = useState<ContactFormData>({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    company: '',
-    position: '',
-    notes: '',
-    tags: [],
+    firstName: initialData?.firstName || '',
+    lastName: initialData?.lastName || '',
+    email: initialData?.email || '',
+    phone: initialData?.phone || '',
+    company: initialData?.company || '',
+    position: initialData?.position || '',
+    notes: initialData?.notes || '',
+    tags: initialData?.tags || [],
   })
+
+  // Update form data when initialData changes (for editing)
+  useEffect(() => {
+    if (isEdit && initialData && isOpen) {
+      setFormData({
+        firstName: initialData.firstName || '',
+        lastName: initialData.lastName || '',
+        email: initialData.email || '',
+        phone: initialData.phone || '',
+        company: initialData.company || '',
+        position: initialData.position || '',
+        notes: initialData.notes || '',
+        tags: initialData.tags || [],
+      })
+    }
+  }, [isEdit, initialData, isOpen])
 
   if (!isOpen) return null
 
@@ -45,20 +65,22 @@ export default function CreateContactModal({
     setLoading(true)
     try {
       await onSubmit(formData)
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        company: '',
-        position: '',
-        notes: '',
-        tags: [],
-      })
-      setTagInput('')
+      if (!isEdit) {
+        setFormData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          phone: '',
+          company: '',
+          position: '',
+          notes: '',
+          tags: [],
+        })
+        setTagInput('')
+      }
       onClose()
     } catch (error) {
-      console.error('Failed to create contact:', error)
+      console.error('Failed to save contact:', error)
     } finally {
       setLoading(false)
     }
@@ -82,7 +104,7 @@ export default function CreateContactModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white">
-          <h2 className="text-2xl font-bold text-gray-900">Add Contact</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{isEdit ? 'Edit Contact' : 'Add Contact'}</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
@@ -269,7 +291,7 @@ export default function CreateContactModal({
               disabled={loading}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? 'Adding...' : 'Add Contact'}
+              {loading ? (isEdit ? 'Updating...' : 'Adding...') : (isEdit ? 'Update Contact' : 'Add Contact')}
             </button>
           </div>
         </form>
