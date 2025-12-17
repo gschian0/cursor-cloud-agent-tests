@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Calendar as CalendarIcon, Users, Plus, LogOut } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Calendar as CalendarIcon, Users, Plus, LogOut, Sparkles } from 'lucide-react'
+import { signOut, useSession } from 'next-auth/react'
 import CalendarComponent from '@/components/Calendar'
 import CreateEventModal, { type EventFormData } from '@/components/CreateEventModal'
 import EventDetailsModal from '@/components/EventDetailsModal'
 import CreateContactModal, { type ContactFormData } from '@/components/CreateContactModal'
 import ContactsList from '@/components/ContactsList'
+import AiAssistant from '@/components/AiAssistant'
 
 interface Event {
   id: string
@@ -37,7 +39,8 @@ interface Contact {
 }
 
 export default function DashboardClient() {
-  const [activeTab, setActiveTab] = useState<'calendar' | 'contacts'>('calendar')
+  const { data: session, status } = useSession()
+  const [activeTab, setActiveTab] = useState<'calendar' | 'contacts' | 'ai'>('calendar')
   const [events, setEvents] = useState<Event[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
   const [showEventModal, setShowEventModal] = useState(false)
@@ -47,17 +50,18 @@ export default function DashboardClient() {
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       const [eventsRes, contactsRes] = await Promise.all([
         fetch('/api/events'),
         fetch('/api/contacts'),
       ])
+
+      if (eventsRes.status === 401 || contactsRes.status === 401) {
+        window.location.href = '/auth/signin'
+        return
+      }
 
       if (eventsRes.ok) {
         const eventsData = await eventsRes.json()
@@ -73,7 +77,16 @@ export default function DashboardClient() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (status === 'loading') return
+    if (status === 'unauthenticated') {
+      window.location.href = '/auth/signin'
+      return
+    }
+    loadData()
+  }, [status, loadData])
 
   const handleCreateEvent = async (eventData: EventFormData) => {
     try {
@@ -188,8 +201,7 @@ export default function DashboardClient() {
   }))
 
   const handleSignOut = async () => {
-    // Auth temporarily disabled - just reload for now
-    window.location.reload()
+    await signOut({ callbackUrl: '/auth/signin' })
   }
 
   if (loading) {
@@ -213,13 +225,18 @@ export default function DashboardClient() {
               <CalendarIcon className="w-8 h-8 text-blue-600" />
               <h1 className="text-2xl font-bold text-gray-900">AI Calendar</h1>
             </div>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign Out
-            </button>
+            <div className="flex items-center gap-3">
+              {session?.user?.email ? (
+                <span className="text-sm text-gray-600">{session.user.email}</span>
+              ) : null}
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -250,6 +267,17 @@ export default function DashboardClient() {
               <Users className="inline w-4 h-4 mr-2" />
               Contacts ({contacts.length})
             </button>
+            <button
+              onClick={() => setActiveTab('ai')}
+              className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'ai'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Sparkles className="inline w-4 h-4 mr-2" />
+              AI
+            </button>
           </div>
         </div>
       </nav>
@@ -274,7 +302,7 @@ export default function DashboardClient() {
               onSelectEvent={handleSelectEvent}
             />
           </div>
-        ) : (
+        ) : activeTab === 'contacts' ? (
           <div>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-3xl font-bold text-gray-900">Your Contacts</h2>
@@ -288,6 +316,8 @@ export default function DashboardClient() {
             </div>
             <ContactsList contacts={contacts} />
           </div>
+        ) : (
+          <AiAssistant events={events} contacts={contacts} />
         )}
       </main>
 

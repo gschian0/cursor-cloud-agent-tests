@@ -1,14 +1,18 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getTestUserId } from '@/lib/test-user'
+import { auth } from '@/lib/auth'
 
 export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Auth temporarily disabled for testing
-    const userId = await getTestUserId()
+    const { id } = await context.params
+    const session = await auth()
+    const userId = session?.user?.id
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const body = await request.json()
     const { title, description, startTime, endTime, location, color, allDay, contactId } = body
@@ -19,7 +23,7 @@ export async function PUT(
 
     // Verify event belongs to user
     const existingEvent = await prisma.event.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!existingEvent) {
@@ -31,7 +35,7 @@ export async function PUT(
     }
 
     const event = await prisma.event.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         title,
         description,
@@ -55,16 +59,20 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Auth temporarily disabled for testing
-    const userId = await getTestUserId()
+    const { id } = await context.params
+    const session = await auth()
+    const userId = session?.user?.id
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     // Verify event belongs to user
     const existingEvent = await prisma.event.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!existingEvent) {
@@ -76,7 +84,7 @@ export async function DELETE(
     }
 
     await prisma.event.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     return NextResponse.json({ success: true })
