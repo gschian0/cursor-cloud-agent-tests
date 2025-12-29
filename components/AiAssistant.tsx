@@ -84,6 +84,21 @@ export default function AiAssistant({
   }, [messages])
 
   const context = useMemo(() => {
+    const now = new Date()
+    const currentDate = now.toISOString()
+    const currentTime = now.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit', 
+      hour12: true,
+      timeZoneName: 'short'
+    })
+    const currentDateFormatted = now.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+
     const upcoming = events.map((e) => {
       const when = `${new Date(e.startTime).toISOString()} - ${new Date(
         e.endTime
@@ -102,6 +117,20 @@ export default function AiAssistant({
     return [
       "You are an AI assistant with full access to manage the user's calendar and contacts database.",
       "",
+      `CURRENT DATE AND TIME:`,
+      `- Current Date: ${currentDateFormatted}`,
+      `- Current Time: ${currentTime}`,
+      `- Current ISO Timestamp: ${currentDate}`,
+      "",
+      "TIME PARSING INSTRUCTIONS:",
+      "- When the user says 'today', use the current date",
+      "- When the user says 'tomorrow', add 1 day to the current date",
+      "- When the user says 'in X hours' or 'X hours from now', add X hours to the current time",
+      "- When the user says 'in X minutes' or 'X minutes from now', add X minutes to the current time",
+      "- When the user says 'at [time]', parse the time and use today's date (or tomorrow if the time has passed)",
+      "- Always convert relative times to absolute ISO 8601 timestamps (e.g., '2024-01-15T14:30:00.000Z')",
+      "- Default event duration is 1 hour if not specified",
+      "",
       "CURRENT CALENDAR EVENTS:",
       upcoming.length ? upcoming.join("\n") : "- (none)",
       "",
@@ -113,6 +142,7 @@ export default function AiAssistant({
       "- Create, update, or delete events",
       "- Create, update, or delete contacts",
       "- Link events to contacts using contactId",
+      "- Generate AI images for events when requested",
       "- Use event IDs and contact IDs from the lists above when performing actions",
       "",
       "When the user asks you to create, modify, or delete something, use the action system.",
@@ -120,6 +150,7 @@ export default function AiAssistant({
       "",
       "IMPORTANT: When referencing events or contacts, use their IDs from the lists above.",
       "You can ask the user to edit events, or you can update them directly using the update_event action.",
+      "When the user asks to 'make an image' or 'generate an image' for an event, include generateImage: true in the action data.",
     ].join("\n")
   }, [events, contacts])
 
@@ -277,11 +308,11 @@ export default function AiAssistant({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 flex flex-col h-full">
+    <div className="rounded-lg shadow-md p-6 flex flex-col h-full" style={{ backgroundColor: 'var(--surface-color)' }}>
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">AI Assistant</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>AI Assistant</h2>
+          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
             Chat with AI about your calendar and contacts. The conversation maintains context.
           </p>
         </div>
@@ -290,7 +321,19 @@ export default function AiAssistant({
             <button
               disabled={loading}
               onClick={clearConversation}
-              className="px-3 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-60 flex items-center gap-2"
+              className="px-3 py-2 text-sm rounded-md disabled:opacity-60 flex items-center gap-2 transition-colors"
+              style={{
+                color: 'var(--text-primary)',
+                backgroundColor: 'var(--border-color)',
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.opacity = '0.8'
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '1'
+              }}
             >
               <Trash2 className="w-4 h-4" />
               Clear Chat
@@ -301,7 +344,19 @@ export default function AiAssistant({
             onClick={() =>
               run("Summarize my upcoming events and highlight any conflicts.")
             }
-            className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-60"
+            className="px-3 py-2 text-sm rounded-md disabled:opacity-60 transition-colors"
+            style={{
+              color: 'var(--text-primary)',
+              backgroundColor: 'var(--border-color)',
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.opacity = '0.8'
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1'
+            }}
           >
             Summarize events
           </button>
@@ -314,9 +369,9 @@ export default function AiAssistant({
         className="flex-1 overflow-y-auto mb-4 space-y-4 min-h-[400px] max-h-[600px] pr-2"
       >
         {messages.length === 0 ? (
-          <div className="text-center text-gray-500 py-12">
-            <Bot className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-lg font-medium">Start a conversation</p>
+          <div className="text-center py-12" style={{ color: 'var(--text-secondary)' }}>
+            <Bot className="w-12 h-12 mx-auto mb-4" style={{ color: 'var(--text-secondary)' }} />
+            <p className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>Start a conversation</p>
             <p className="text-sm mt-2">Ask me about your calendar, contacts, or anything else!</p>
           </div>
         ) : (
@@ -328,16 +383,20 @@ export default function AiAssistant({
               }`}
             >
               {message.role === 'assistant' && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-blue-600" />
+                <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--primary-color)', opacity: 0.2 }}>
+                  <Bot className="w-5 h-5" style={{ color: 'var(--primary-color)' }} />
                 </div>
               )}
               <div
                 className={`max-w-[80%] rounded-lg px-4 py-3 ${
                   message.role === 'user'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-900'
+                    : ''
                 }`}
+                style={message.role === 'user' 
+                  ? { backgroundColor: 'var(--primary-color)', color: 'white' }
+                  : { backgroundColor: 'var(--surface-color)', color: 'var(--text-primary)' }
+                }
               >
                 <div className="whitespace-pre-wrap text-sm">{message.content}</div>
                 
@@ -402,9 +461,10 @@ export default function AiAssistant({
                 )}
                 
                 <div
-                  className={`text-xs mt-1 ${
-                    message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
-                  }`}
+                  className="text-xs mt-1"
+                  style={{
+                    color: message.role === 'user' ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)',
+                  }}
                 >
                   {message.timestamp.toLocaleTimeString([], {
                     hour: '2-digit',
@@ -413,8 +473,8 @@ export default function AiAssistant({
                 </div>
               </div>
               {message.role === 'user' && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                  <User className="w-5 h-5 text-gray-600" />
+                <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--border-color)' }}>
+                  <User className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} />
                 </div>
               )}
             </div>
@@ -423,14 +483,14 @@ export default function AiAssistant({
         
         {loading && (
           <div className="flex gap-3 justify-start">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-blue-600" />
+            <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--primary-color)', opacity: 0.2 }}>
+              <Bot className="w-5 h-5" style={{ color: 'var(--primary-color)' }} />
             </div>
-            <div className="bg-gray-100 rounded-lg px-4 py-3">
+            <div className="rounded-lg px-4 py-3" style={{ backgroundColor: 'var(--surface-color)' }}>
               <div className="flex gap-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--text-secondary)', animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--text-secondary)', animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--text-secondary)', animationDelay: '300ms' }}></div>
               </div>
             </div>
           </div>
@@ -440,13 +500,13 @@ export default function AiAssistant({
 
       {/* Error Message */}
       {error && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3 mb-4">
+        <div className="text-sm rounded-md p-3 mb-4" style={{ color: '#dc2626', backgroundColor: 'rgba(254, 242, 242, 0.8)', border: '1px solid rgba(254, 226, 226, 0.8)' }}>
           {error}
         </div>
       )}
 
       {/* Input Area */}
-      <div className="space-y-2 border-t pt-4">
+      <div className="space-y-2 border-t pt-4" style={{ borderColor: 'var(--border-color)' }}>
         <div className="flex gap-2">
           <textarea
             value={prompt}
@@ -458,19 +518,33 @@ export default function AiAssistant({
               }
             }}
             placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
-            className="flex-1 min-h-[80px] max-h-[200px] border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            className="flex-1 min-h-[80px] max-h-[200px] rounded-md p-3 focus:outline-none focus:ring-2 resize-none"
+            style={{
+              color: 'var(--text-primary)',
+              backgroundColor: 'var(--background-color)',
+              border: `1px solid var(--border-color)`,
+            }}
             disabled={loading}
           />
           <button
             disabled={loading || prompt.trim().length === 0}
             onClick={() => run(prompt)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 h-fit"
+            className="px-6 py-3 text-white rounded-md disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 h-fit transition-opacity"
+            style={{ backgroundColor: 'var(--primary-color)' }}
+            onMouseEnter={(e) => {
+              if (!loading && prompt.trim().length > 0) {
+                e.currentTarget.style.opacity = '0.9'
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1'
+            }}
           >
             <Send className="w-4 h-4" />
             {loading ? "Sending..." : "Send"}
           </button>
         </div>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
           The AI has access to your calendar events and contacts for context.
         </p>
       </div>

@@ -31,16 +31,16 @@ export default function CreateContactModal({
 }: CreateContactModalProps) {
   const [loading, setLoading] = useState(false)
   const [tagInput, setTagInput] = useState('')
-  const [formData, setFormData] = useState<ContactFormData>({
-    firstName: initialData?.firstName || '',
-    lastName: initialData?.lastName || '',
-    email: initialData?.email || '',
-    phone: initialData?.phone || '',
-    company: initialData?.company || '',
-    position: initialData?.position || '',
-    notes: initialData?.notes || '',
-    tags: initialData?.tags || [],
-  })
+  const [formData, setFormData] = useState<ContactFormData>(() => ({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    company: '',
+    position: '',
+    notes: '',
+    tags: [],
+  }))
 
   // Update form data when initialData changes (for editing)
   useEffect(() => {
@@ -101,13 +101,20 @@ export default function CreateContactModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white">
-          <h2 className="text-2xl font-bold text-gray-900">{isEdit ? 'Edit Contact' : 'Add Contact'}</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="modern-modal w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center p-6 border-b sticky top-0" style={{ backgroundColor: 'transparent', borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+          <h2 className="text-2xl font-bold text-3d" style={{ color: 'var(--text-primary)' }}>{isEdit ? 'Edit Contact' : 'Add Contact'}</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-primary)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-secondary)'
+            }}
           >
             <X className="w-6 h-6" />
           </button>
@@ -116,122 +123,143 @@ export default function CreateContactModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                 First Name *
               </label>
               <input
                 type="text"
                 required
-                value={formData.firstName}
+                value={formData.firstName || ''}
                 onChange={(e) =>
                   setFormData({ ...formData, firstName: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="modern-input w-full px-3 py-2 focus:outline-none"
+                style={{
+                  color: 'var(--text-primary)',
+                }}
                 placeholder="John"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                 Last Name *
               </label>
               <input
                 type="text"
                 required
-                value={formData.lastName}
+                value={formData.lastName || ''}
                 onChange={(e) =>
                   setFormData({ ...formData, lastName: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="modern-input w-full px-3 py-2 focus:outline-none"
+                style={{
+                  color: 'var(--text-primary)',
+                }}
                 placeholder="Doe"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
               <Mail className="inline w-4 h-4 mr-1" />
               Email *
             </label>
             <input
               type="email"
               required
-              value={formData.email}
+              value={formData.email || ''}
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="modern-input w-full px-3 py-2 focus:outline-none"
+                style={{
+                  color: 'var(--text-primary)',
+                }}
               placeholder="john.doe@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
               <Phone className="inline w-4 h-4 mr-1" />
               Phone
             </label>
             <input
               type="tel"
-              value={formData.phone}
+              value={formData.phone || ''}
               onChange={(e) =>
                 setFormData({ ...formData, phone: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="modern-input w-full px-3 py-2 focus:outline-none"
+                style={{
+                  color: 'var(--text-primary)',
+                }}
               placeholder="+1 (555) 123-4567"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                 <Building className="inline w-4 h-4 mr-1" />
                 Company
               </label>
               <input
                 type="text"
-                value={formData.company}
+                value={formData.company || ''}
                 onChange={(e) =>
                   setFormData({ ...formData, company: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="modern-input w-full px-3 py-2 focus:outline-none"
+                style={{
+                  color: 'var(--text-primary)',
+                }}
                 placeholder="Acme Corp"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                 <Briefcase className="inline w-4 h-4 mr-1" />
                 Position
               </label>
               <input
                 type="text"
-                value={formData.position}
+                value={formData.position || ''}
                 onChange={(e) =>
                   setFormData({ ...formData, position: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="modern-input w-full px-3 py-2 focus:outline-none"
+                style={{
+                  color: 'var(--text-primary)',
+                }}
                 placeholder="Software Engineer"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
               Notes
             </label>
             <textarea
-              value={formData.notes}
+              value={formData.notes || ''}
               onChange={(e) =>
                 setFormData({ ...formData, notes: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="modern-input w-full px-3 py-2 focus:outline-none"
+                style={{
+                  color: 'var(--text-primary)',
+                }}
               rows={3}
               placeholder="Additional notes about this contact..."
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
               <Tag className="inline w-4 h-4 mr-1" />
               Tags
             </label>
@@ -246,13 +274,28 @@ export default function CreateContactModal({
                     addTag()
                   }
                 }}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-2 rounded-md focus:outline-none focus:ring-2"
+                style={{
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'var(--background-color)',
+                  border: `1px solid var(--border-color)`,
+                }}
                 placeholder="Add a tag..."
               />
               <button
                 type="button"
                 onClick={addTag}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                className="px-4 py-2 rounded-md transition-colors"
+                style={{
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'var(--surface-color)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.8'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1'
+                }}
               >
                 Add
               </button>
@@ -262,13 +305,25 @@ export default function CreateContactModal({
                 {formData.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                    className="inline-flex items-center px-3 py-1 rounded-full text-sm"
+                    style={{
+                      backgroundColor: 'var(--primary-color)',
+                      color: 'white',
+                      opacity: 0.8,
+                    }}
                   >
                     {tag}
                     <button
                       type="button"
                       onClick={() => removeTag(tag)}
-                      className="ml-2 text-blue-600 hover:text-blue-800"
+                      className="ml-2 transition-opacity"
+                      style={{ color: 'white' }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.opacity = '0.7'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '1'
+                      }}
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -278,18 +333,37 @@ export default function CreateContactModal({
             )}
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 pt-4 border-t" style={{ borderColor: 'var(--border-color)' }}>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              className="px-4 py-2 rounded-md transition-colors"
+              style={{
+                color: 'var(--text-primary)',
+                backgroundColor: 'var(--surface-color)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = '0.8'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '1'
+              }}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 text-white rounded-md disabled:opacity-50 transition-opacity"
+              style={{ backgroundColor: 'var(--primary-color)' }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.opacity = '0.9'
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '1'
+              }}
             >
               {loading ? (isEdit ? 'Updating...' : 'Adding...') : (isEdit ? 'Update Contact' : 'Add Contact')}
             </button>

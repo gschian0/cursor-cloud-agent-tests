@@ -20,6 +20,8 @@ model User {
   sessions      Session[]
   events        Event[]
   contacts      Contact[]
+  themes        Theme[]
+  siteSettings  SiteSettings?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -69,6 +71,7 @@ model Event {
   location    String?
   color       String   @default("#3b82f6")
   allDay      Boolean  @default(false)
+  imageUrl    String?  @db.Text
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   contactId   String?
@@ -100,4 +103,30 @@ model Contact {
   
   @@index([userId])
   @@index([email])
+}
+
+// Theme model
+model Theme {
+  id          String   @id @default(cuid())
+  name        String
+  css         String   @db.Text
+  isDefault   Boolean  @default(false)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+  @@unique([userId, name])
+}
+
+// Site Settings model (for header/logo)
+model SiteSettings {
+  id          String   @id @default(cuid())
+  headerImage String?  @db.Text
+  logoImage   String?  @db.Text
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

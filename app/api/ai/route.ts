@@ -35,11 +35,42 @@ export async function POST(request: Request) {
 
     const ai = new GoogleGenAI({ apiKey })
 
+    // Get current date/time for context
+    const now = new Date()
+    const currentDate = now.toISOString()
+    const currentDateFormatted = now.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+    const currentTime = now.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit', 
+      hour12: true,
+      timeZoneName: 'short'
+    })
+
     // Database schema information for the AI
     const schemaInfo = `
 DATABASE SCHEMA:
-- Event: { id, title, description, startTime, endTime, location, color, allDay, userId, contactId, createdAt, updatedAt }
+- Event: { id, title, description, startTime, endTime, location, color, allDay, userId, contactId, createdAt, updatedAt, imageUrl }
 - Contact: { id, firstName, lastName, email, phone, company, position, notes, tags[], userId, createdAt, updatedAt }
+
+CURRENT DATE AND TIME:
+- Current Date: ${currentDateFormatted}
+- Current Time: ${currentTime}
+- Current ISO Timestamp: ${currentDate}
+
+TIME PARSING INSTRUCTIONS:
+- When the user says 'today', use the current date: ${now.toISOString().split('T')[0]}
+- When the user says 'tomorrow', add 1 day to the current date
+- When the user says 'in X hours' or 'X hours from now', add X hours to the current time (${currentDate})
+- When the user says 'in X minutes' or 'X minutes from now', add X minutes to the current time
+- When the user says 'at [time]', parse the time and use today's date (or tomorrow if the time has passed)
+- Always convert relative times to absolute ISO 8601 timestamps (e.g., '2024-01-15T14:30:00.000Z')
+- Default event duration is 1 hour if not specified
+- Example: "1 hour from now" = add 1 hour to ${currentDate}
 
 AVAILABLE ACTIONS:
 You can perform actions by responding with JSON in this format:
@@ -47,8 +78,11 @@ You can perform actions by responding with JSON in this format:
 
 ACTION TYPES:
 1. create_event - Create a new calendar event
-   Required: title, startTime (ISO string), endTime (ISO string)
-   Optional: description, location, color, allDay, contactId
+   Required: title, startTime (ISO 8601 string), endTime (ISO 8601 string)
+   Optional: description, location, color, allDay, contactId, generateImage (boolean)
+   - generateImage: Set to true if user requests AI image generation for the event
+   - startTime/endTime: Must be ISO 8601 format (e.g., "2024-01-15T14:30:00.000Z")
+   - Parse relative times like "today 1 hour from now" to absolute timestamps
 
 2. update_event - Update an existing event
    Required: id
@@ -70,6 +104,10 @@ ACTION TYPES:
 
 When you want to perform an action, respond with ONLY the JSON action object, nothing else.
 When responding normally, do not include any JSON action objects.
+
+EXAMPLES:
+- User: "make an event for today 1 hour from now for 'Team Meeting' and make an image for the event"
+  Response: {"action": "create_event", "data": {"title": "Team Meeting", "startTime": "[1 hour from now ISO]", "endTime": "[2 hours from now ISO]", "generateImage": true}}
 `
 
     // Build system context

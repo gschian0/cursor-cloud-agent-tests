@@ -81,17 +81,24 @@ export default function ContactDetailsModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
       <div 
-        className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
+        className="modern-modal w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900">Contact Details</h2>
+        <div className="sticky top-0 border-b px-6 py-4 flex justify-between items-center" style={{ backgroundColor: 'transparent', borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+          <h2 className="text-2xl font-bold text-3d" style={{ color: 'var(--text-primary)' }}>Contact Details</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-primary)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-secondary)'
+            }}
           >
             <X className="w-6 h-6" />
           </button>
@@ -101,7 +108,7 @@ export default function ContactDetailsModal({
         <div className="p-6 space-y-6">
           {/* Name */}
           <div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">
+            <h3 className="text-3xl font-bold text-3d mb-2" style={{ color: 'var(--text-primary)' }}>
               {contact.firstName} {contact.lastName}
             </h3>
           </div>
@@ -109,53 +116,58 @@ export default function ContactDetailsModal({
           {/* Contact Information */}
           <div className="space-y-4">
             <div className="flex items-start gap-3">
-              <Mail className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
+              <Mail className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} />
               <div>
-                <p className="text-sm font-medium text-gray-500">Email</p>
-                <p className="text-base text-gray-900">{contact.email}</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Email</p>
+                <p className="text-base" style={{ color: 'var(--text-primary)' }}>{contact.email}</p>
               </div>
             </div>
 
             {contact.phone && (
               <div className="flex items-start gap-3">
-                <Phone className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
+                <Phone className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} />
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Phone</p>
-                  <p className="text-base text-gray-900">{contact.phone}</p>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Phone</p>
+                  <p className="text-base" style={{ color: 'var(--text-primary)' }}>{contact.phone}</p>
                 </div>
               </div>
             )}
 
             {contact.company && (
               <div className="flex items-start gap-3">
-                <Building className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
+                <Building className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} />
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Company</p>
-                  <p className="text-base text-gray-900">{contact.company}</p>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Company</p>
+                  <p className="text-base" style={{ color: 'var(--text-primary)' }}>{contact.company}</p>
                 </div>
               </div>
             )}
 
             {contact.position && (
               <div className="flex items-start gap-3">
-                <Briefcase className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
+                <Briefcase className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} />
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Position</p>
-                  <p className="text-base text-gray-900">{contact.position}</p>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Position</p>
+                  <p className="text-base" style={{ color: 'var(--text-primary)' }}>{contact.position}</p>
                 </div>
               </div>
             )}
 
             {contact.tags && contact.tags.length > 0 && (
               <div className="flex items-start gap-3">
-                <Tag className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
+                <Tag className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} />
                 <div>
-                  <p className="text-sm font-medium text-gray-500 mb-2">Tags</p>
+                  <p className="text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Tags</p>
                   <div className="flex flex-wrap gap-2">
                     {contact.tags.map((tag) => (
                       <span
                         key={tag}
-                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                        className="px-3 py-1 rounded-full text-sm"
+                        style={{
+                          backgroundColor: 'var(--primary-color)',
+                          color: 'white',
+                          opacity: 0.8,
+                        }}
                       >
                         {tag}
                       </span>
@@ -167,10 +179,10 @@ export default function ContactDetailsModal({
 
             {contact.notes && (
               <div className="flex items-start gap-3">
-                <FileText className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
+                <FileText className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} />
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Notes</p>
-                  <p className="text-base text-gray-900 whitespace-pre-wrap">{contact.notes}</p>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Notes</p>
+                  <p className="text-base whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>{contact.notes}</p>
                 </div>
               </div>
             )}
@@ -178,18 +190,37 @@ export default function ContactDetailsModal({
         </div>
 
         {/* Actions */}
-        <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex justify-end gap-3">
+        <div className="sticky bottom-0 border-t px-6 py-4 flex justify-end gap-3" style={{ backgroundColor: 'var(--surface-color)', borderColor: 'var(--border-color)' }}>
           <button
             onClick={handleDelete}
             disabled={isDeleting}
-            className="flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 rounded-md hover:bg-red-100 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-md disabled:opacity-50 transition-colors"
+            style={{
+              color: '#dc2626',
+              backgroundColor: 'rgba(254, 242, 242, 0.8)',
+            }}
+            onMouseEnter={(e) => {
+              if (!isDeleting) {
+                e.currentTarget.style.backgroundColor = 'rgba(254, 242, 242, 1)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(254, 242, 242, 0.8)'
+            }}
           >
             <Trash2 className="w-4 h-4" />
             {isDeleting ? 'Deleting...' : 'Delete'}
           </button>
           <button
             onClick={() => setIsEditing(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-white rounded-md transition-opacity"
+            style={{ backgroundColor: 'var(--primary-color)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '0.9'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1'
+            }}
           >
             <Edit2 className="w-4 h-4" />
             Edit Contact

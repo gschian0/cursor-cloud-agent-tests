@@ -33,22 +33,69 @@ export async function POST(request: Request) {
         if (!data.title || !data.startTime || !data.endTime) {
           return NextResponse.json({ error: 'Missing required fields: title, startTime, endTime' }, { status: 400 })
         }
+        
+        console.log('[AI Actions] create_event called', {
+          title: data.title,
+          generateImage: data.generateImage,
+          generateImageType: typeof data.generateImage
+        })
+        
+        // Import the async image generation function from shared lib
+        const { generateEventImageAsync } = await import('@/lib/generate-event-image')
+        console.log('[AI Actions] Successfully imported generateEventImageAsync', { hasFunction: !!generateEventImageAsync })
+        
+        // Create event directly (image generation will happen async if requested)
+        const eventData = {
+          title: data.title,
+          description: data.description || null,
+          startTime: new Date(data.startTime),
+          endTime: new Date(data.endTime),
+          location: data.location || null,
+          color: data.color || '#3b82f6',
+          allDay: data.allDay || false,
+          userId,
+          contactId: data.contactId || null,
+        }
+        
         result = await prisma.event.create({
-          data: {
-            title: data.title,
-            description: data.description || null,
-            startTime: new Date(data.startTime),
-            endTime: new Date(data.endTime),
-            location: data.location || null,
-            color: data.color || '#3b82f6',
-            allDay: data.allDay || false,
-            userId,
-            contactId: data.contactId || null,
-          },
+          data: eventData,
           include: {
             contact: true,
           },
         })
+        
+        console.log('[AI Actions] Event created', { eventId: result.id, generateImage: data.generateImage })
+        
+        // Generate image asynchronously if requested (don't await)
+        if (data.generateImage === true || data.generateImage === 'true') {
+          console.log('[AI Actions] Starting async image generation', {
+            eventId: result.id,
+            title: data.title,
+            description: data.description || '',
+            color: data.color || '#3b82f6',
+            generateImageValue: data.generateImage
+          })
+          
+          generateEventImageAsync(result.id, data.title, data.description || '', data.color || '#3b82f6')
+            .then(() => {
+              console.log('[AI Actions] Background image generation completed', { eventId: result.id })
+            })
+            .catch((error) => {
+              console.error('[AI Actions] Background image generation failed:', error)
+              if (error instanceof Error) {
+                console.error('[AI Actions] Error details:', {
+                  message: error.message,
+                  stack: error.stack,
+                  name: error.name
+                })
+              }
+            })
+        } else {
+          console.log('[AI Actions] Skipping image generation', {
+            generateImage: data.generateImage,
+            generateImageType: typeof data.generateImage
+          })
+        }
         break
 
       case 'update_event':

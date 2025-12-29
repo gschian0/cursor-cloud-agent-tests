@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Edit2, Trash2, Calendar, MapPin, Clock, FileText } from 'lucide-react'
 import CreateEventModal, { type EventFormData } from './CreateEventModal'
 
@@ -13,6 +13,7 @@ interface Event {
   location?: string
   color?: string
   allDay?: boolean
+  imageUrl?: string
   contact?: {
     id: string
     firstName: string
@@ -37,15 +38,130 @@ export default function EventDetailsModal({
 }: EventDetailsModalProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [currentEvent, setCurrentEvent] = useState<Event | null>(event)
 
-  if (!isOpen || !event) return null
+  // Update current event when event prop changes
+  useEffect(() => {
+    console.log('[EventDetailsModal] Event prop changed', { 
+      eventId: event?.id,
+      hasImageUrl: !!event?.imageUrl 
+    })
+    setCurrentEvent(event)
+  }, [event])
+  
+  // Also fetch latest event data when modal opens
+  useEffect(() => {
+    if (isOpen && currentEvent && !currentEvent.imageUrl) {
+      console.log('[EventDetailsModal] Modal opened, fetching latest event data', { eventId: currentEvent.id })
+      const fetchLatest = async () => {
+        try {
+          const response = await fetch(`/api/events/${currentEvent.id}`)
+          if (response.ok) {
+            const latestEvent = await response.json()
+            console.log('[EventDetailsModal] Latest event data fetched', { 
+              eventId: latestEvent.id,
+              hasImageUrl: !!latestEvent.imageUrl 
+            })
+            if (latestEvent.imageUrl || latestEvent.id !== currentEvent.id) {
+              setCurrentEvent(latestEvent)
+            }
+          }
+        } catch (error) {
+          console.error('[EventDetailsModal] Failed to fetch latest event:', error)
+        }
+      }
+      fetchLatest()
+    }
+  }, [isOpen, currentEvent?.id])
+
+  // Poll for image if event doesn't have one yet
+  useEffect(() => {
+    if (!isOpen || !currentEvent || currentEvent.imageUrl) {
+      console.log('[EventDetailsModal] Skipping poll setup', { 
+        isOpen, 
+        hasEvent: !!currentEvent, 
+        hasImageUrl: !!currentEvent?.imageUrl 
+      })
+      return
+    }
+
+    console.log('[EventDetailsModal] Starting image polling', { eventId: currentEvent.id })
+
+    let pollCount = 0
+    const maxPolls = 30 // Poll for up to 60 seconds (30 * 2s)
+
+    const pollForImage = async () => {
+      pollCount++
+      console.log(`[EventDetailsModal] Polling for image (attempt ${pollCount}/${maxPolls})`, { eventId: currentEvent.id })
+      
+      try {
+        const response = await fetch(`/api/events/${currentEvent.id}`)
+        if (response.ok) {
+          const updatedEvent = await response.json()
+          console.log('[EventDetailsModal] Poll response received', { 
+            eventId: updatedEvent.id,
+            hasImageUrl: !!updatedEvent.imageUrl,
+            imageUrlLength: updatedEvent.imageUrl?.length || 0
+          })
+          
+          if (updatedEvent.imageUrl) {
+            console.log('[EventDetailsModal] Image found! Updating event', { eventId: updatedEvent.id })
+            setCurrentEvent(updatedEvent)
+            // Stop polling once we have the image
+            return true
+          }
+        } else {
+          console.warn('[EventDetailsModal] Poll request failed', { 
+            status: response.status,
+            eventId: currentEvent.id 
+          })
+        }
+      } catch (error) {
+        console.error('[EventDetailsModal] Failed to poll for event image:', error)
+      }
+      
+      return false
+    }
+
+    // Poll immediately, then every 2 seconds
+    pollForImage().then((hasImage) => {
+      if (hasImage) return // Stop if we got the image immediately
+    })
+
+    const interval = setInterval(async () => {
+      if (pollCount >= maxPolls) {
+        console.log('[EventDetailsModal] Max polls reached, stopping', { eventId: currentEvent.id })
+        clearInterval(interval)
+        return
+      }
+      
+      const hasImage = await pollForImage()
+      if (hasImage) {
+        console.log('[EventDetailsModal] Image received, stopping poll', { eventId: currentEvent.id })
+        clearInterval(interval)
+      }
+    }, 2000)
+
+    const timeout = setTimeout(() => {
+      console.log('[EventDetailsModal] Poll timeout reached', { eventId: currentEvent.id })
+      clearInterval(interval)
+    }, 60000) // 60 seconds max
+
+    return () => {
+      console.log('[EventDetailsModal] Cleaning up poll', { eventId: currentEvent.id })
+      clearInterval(interval)
+      clearTimeout(timeout)
+    }
+  }, [isOpen, currentEvent?.id, currentEvent?.imageUrl]) // Use specific properties instead of whole object
+
+  if (!isOpen || !currentEvent) return null
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this event?')) return
     
     setIsDeleting(true)
     try {
-      await onDelete(event.id)
+      await onDelete(currentEvent.id)
       onClose()
     } catch (error) {
       console.error('Failed to delete event:', error)
@@ -56,7 +172,7 @@ export default function EventDetailsModal({
 
   const handleEdit = async (eventData: EventFormData) => {
     try {
-      await onEdit(event.id, eventData)
+      await onEdit(currentEvent.id, eventData)
       setIsEditing(false)
     } catch (error) {
       console.error('Failed to update event:', error)
@@ -87,16 +203,16 @@ export default function EventDetailsModal({
         isOpen={true}
         onClose={() => setIsEditing(false)}
         onSubmit={handleEdit}
-        initialStart={new Date(event.startTime)}
-        initialEnd={new Date(event.endTime)}
+        initialStart={new Date(currentEvent.startTime)}
+        initialEnd={new Date(currentEvent.endTime)}
         initialData={{
-          title: event.title,
-          description: event.description || '',
-          startTime: event.startTime,
-          endTime: event.endTime,
-          location: event.location || '',
-          color: event.color || '#3b82f6',
-          allDay: event.allDay || false,
+          title: currentEvent.title,
+          description: currentEvent.description || '',
+          startTime: currentEvent.startTime,
+          endTime: currentEvent.endTime,
+          location: currentEvent.location || '',
+          color: currentEvent.color || '#3b82f6',
+          allDay: currentEvent.allDay || false,
         }}
         isEdit={true}
       />
@@ -104,17 +220,24 @@ export default function EventDetailsModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
       <div 
-        className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
+        className="modern-modal w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900">Event Details</h2>
+        <div className="sticky top-0 border-b px-6 py-4 flex justify-between items-center" style={{ backgroundColor: 'transparent', borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+          <h2 className="text-2xl font-bold text-3d" style={{ color: 'var(--text-primary)' }}>Event Details</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-primary)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-secondary)'
+            }}
           >
             <X className="w-6 h-6" />
           </button>
@@ -122,66 +245,106 @@ export default function EventDetailsModal({
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {/* Event Image */}
+          <div className="w-full h-64 rounded-lg overflow-hidden mb-4" style={{ backgroundColor: 'var(--surface-color)' }}>
+            {currentEvent.imageUrl ? (
+              <img 
+                src={currentEvent.imageUrl} 
+                alt={currentEvent.title}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Show placeholder if image fails to load
+                  const target = e.currentTarget
+                  target.style.display = 'none'
+                  const placeholder = target.nextElementSibling as HTMLElement
+                  if (placeholder) placeholder.style.display = 'flex'
+                }}
+              />
+            ) : null}
+            <div 
+              className={`w-full h-full flex items-center justify-center ${currentEvent.imageUrl ? 'hidden' : ''}`}
+              style={{ 
+                backgroundColor: currentEvent.color || 'var(--primary-color)',
+                opacity: 0.1,
+              }}
+            >
+              <div className="text-center p-4">
+                <div 
+                  className="text-4xl font-bold mb-2"
+                  style={{ color: currentEvent.color || 'var(--primary-color)' }}
+                >
+                  {currentEvent.title.substring(0, 2).toUpperCase()}
+                </div>
+                <p 
+                  className="text-sm"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  {currentEvent.imageUrl ? 'Loading image...' : 'AI Image Placeholder'}
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Title */}
           <div>
             <div 
               className="inline-block px-3 py-1 rounded-md text-white font-semibold mb-3"
-              style={{ backgroundColor: event.color || '#3b82f6' }}
+              style={{ backgroundColor: currentEvent.color || '#3b82f6' }}
             >
-              {event.allDay ? 'All Day' : ''}
+              {currentEvent.allDay ? 'All Day' : ''}
             </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">{event.title}</h3>
+            <h3 className="text-3xl font-bold text-3d mb-2" style={{ color: 'var(--text-primary)' }}>{currentEvent.title}</h3>
           </div>
 
           {/* Date & Time */}
           <div className="space-y-4">
             <div className="flex items-start gap-3">
-              <Calendar className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
+              <Calendar className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} />
               <div>
-                <p className="text-sm font-medium text-gray-500">Date</p>
-                <p className="text-base text-gray-900">{formatDate(event.startTime)}</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Date</p>
+                <p className="text-base" style={{ color: 'var(--text-primary)' }}>{formatDate(currentEvent.startTime)}</p>
               </div>
             </div>
 
-            {!event.allDay && (
+            {!currentEvent.allDay && (
               <div className="flex items-start gap-3">
-                <Clock className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
+                <Clock className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} />
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Time</p>
-                  <p className="text-base text-gray-900">
-                    {formatTime(event.startTime)} - {formatTime(event.endTime)}
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Time</p>
+                  <p className="text-base" style={{ color: 'var(--text-primary)' }}>
+                    {formatTime(currentEvent.startTime)} - {formatTime(currentEvent.endTime)}
                   </p>
                 </div>
               </div>
             )}
 
-            {event.location && (
+            {currentEvent.location && (
               <div className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
+                <MapPin className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} />
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Location</p>
-                  <p className="text-base text-gray-900">{event.location}</p>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Location</p>
+                  <p className="text-base" style={{ color: 'var(--text-primary)' }}>{currentEvent.location}</p>
                 </div>
               </div>
             )}
 
-            {event.description && (
+            {currentEvent.description && (
               <div className="flex items-start gap-3">
-                <FileText className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
+                <FileText className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} />
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Description</p>
-                  <p className="text-base text-gray-900 whitespace-pre-wrap">{event.description}</p>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Description</p>
+                  <p className="text-base whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>{currentEvent.description}</p>
                 </div>
               </div>
             )}
 
-            {event.contact && (
+            {currentEvent.contact && (
               <div className="flex items-start gap-3">
-                <div className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
+                <div className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} />
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Contact</p>
-                  <p className="text-base font-semibold text-gray-900">
-                    {event.contact.firstName} {event.contact.lastName}
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Contact</p>
+                  <p className="text-base font-semibold text-3d-subtle" style={{ color: 'var(--text-primary)' }}>
+                    {currentEvent.contact.firstName} {currentEvent.contact.lastName}
                   </p>
                 </div>
               </div>
@@ -190,18 +353,37 @@ export default function EventDetailsModal({
         </div>
 
         {/* Actions */}
-        <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex justify-end gap-3">
+        <div className="sticky bottom-0 border-t px-6 py-4 flex justify-end gap-3" style={{ backgroundColor: 'var(--surface-color)', borderColor: 'var(--border-color)' }}>
           <button
             onClick={handleDelete}
             disabled={isDeleting}
-            className="flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 rounded-md hover:bg-red-100 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-md disabled:opacity-50 transition-colors"
+            style={{
+              color: '#dc2626',
+              backgroundColor: 'rgba(254, 242, 242, 0.8)',
+            }}
+            onMouseEnter={(e) => {
+              if (!isDeleting) {
+                e.currentTarget.style.backgroundColor = 'rgba(254, 242, 242, 1)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(254, 242, 242, 0.8)'
+            }}
           >
             <Trash2 className="w-4 h-4" />
             {isDeleting ? 'Deleting...' : 'Delete'}
           </button>
           <button
             onClick={() => setIsEditing(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-white rounded-md transition-opacity"
+            style={{ backgroundColor: 'var(--primary-color)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '0.9'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1'
+            }}
           >
             <Edit2 className="w-4 h-4" />
             Edit Event

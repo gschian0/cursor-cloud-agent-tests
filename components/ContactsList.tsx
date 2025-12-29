@@ -21,11 +21,11 @@ interface ContactsListProps {
 
 export default function ContactsList({ contacts, onContactSelect }: ContactsListProps) {
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">Contacts</h2>
+    <div className="rounded-lg shadow-lg p-6" style={{ backgroundColor: 'var(--surface-color)' }}>
+      <h2 className="text-2xl font-bold text-3d mb-4" style={{ color: 'var(--text-primary)' }}>Contacts</h2>
       
       {contacts.length === 0 ? (
-        <p className="text-gray-700 text-center py-8">
+        <p className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
           No contacts yet. Add your first contact!
         </p>
       ) : (
@@ -33,38 +33,42 @@ export default function ContactsList({ contacts, onContactSelect }: ContactsList
           {contacts.map((contact) => (
             <div
               key={contact.id}
-              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+              className="rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+              style={{
+                border: `1px solid var(--border-color)`,
+                backgroundColor: 'var(--background-color)',
+              }}
               onClick={() => onContactSelect?.(contact)}
             >
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  <h3 className="text-xl font-bold text-3d-subtle mb-2" style={{ color: 'var(--text-primary)' }}>
                     {contact.firstName} {contact.lastName}
                   </h3>
                   
                   <div className="mt-2 space-y-1.5">
-                    <div className="flex items-center text-sm text-gray-800">
-                      <Mail className="w-4 h-4 mr-2 text-gray-600" />
+                    <div className="flex items-center text-sm" style={{ color: 'var(--text-primary)' }}>
+                      <Mail className="w-4 h-4 mr-2" style={{ color: 'var(--text-secondary)' }} />
                       {contact.email}
                     </div>
                     
                     {contact.phone && (
-                      <div className="flex items-center text-sm text-gray-800">
-                        <Phone className="w-4 h-4 mr-2 text-gray-600" />
+                      <div className="flex items-center text-sm" style={{ color: 'var(--text-primary)' }}>
+                        <Phone className="w-4 h-4 mr-2" style={{ color: 'var(--text-secondary)' }} />
                         {contact.phone}
                       </div>
                     )}
                     
                     {contact.company && (
-                      <div className="flex items-center text-sm text-gray-800">
-                        <Building className="w-4 h-4 mr-2 text-gray-600" />
+                      <div className="flex items-center text-sm" style={{ color: 'var(--text-primary)' }}>
+                        <Building className="w-4 h-4 mr-2" style={{ color: 'var(--text-secondary)' }} />
                         {contact.company}
                       </div>
                     )}
                     
                     {contact.position && (
-                      <div className="flex items-center text-sm text-gray-800">
-                        <Briefcase className="w-4 h-4 mr-2 text-gray-600" />
+                      <div className="flex items-center text-sm" style={{ color: 'var(--text-primary)' }}>
+                        <Briefcase className="w-4 h-4 mr-2" style={{ color: 'var(--text-secondary)' }} />
                         {contact.position}
                       </div>
                     )}
@@ -75,7 +79,12 @@ export default function ContactsList({ contacts, onContactSelect }: ContactsList
                       {contact.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs"
+                          className="px-2 py-1 rounded-full text-xs"
+                          style={{
+                            backgroundColor: 'var(--primary-color)',
+                            color: 'white',
+                            opacity: 0.8,
+                          }}
                         >
                           {tag}
                         </span>
@@ -84,7 +93,7 @@ export default function ContactsList({ contacts, onContactSelect }: ContactsList
                   )}
 
                   {contact.notes && (
-                    <p className="mt-3 text-sm text-gray-800 line-clamp-2">
+                    <p className="mt-3 text-sm line-clamp-2" style={{ color: 'var(--text-primary)' }}>
                       {contact.notes}
                     </p>
                   )}

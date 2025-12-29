@@ -21,6 +21,7 @@ export interface EventFormData {
   location: string
   color: string
   allDay: boolean
+  generateImage?: boolean
 }
 
 export default function CreateEventModal({
@@ -34,6 +35,15 @@ export default function CreateEventModal({
 }: CreateEventModalProps) {
   const [loading, setLoading] = useState(false)
   
+  // Get default event color from theme
+  const getDefaultEventColor = () => {
+    if (typeof window === 'undefined') return '#3b82f6'
+    const computed = getComputedStyle(document.documentElement)
+    return computed.getPropertyValue('--event-default-color').trim() || 
+           computed.getPropertyValue('--primary-color').trim() || 
+           '#3b82f6'
+  }
+  
   // Helper to format date for datetime-local input
   const formatDateTimeLocal = (date: Date) => {
     const year = date.getFullYear()
@@ -45,28 +55,58 @@ export default function CreateEventModal({
   }
   
   const [formData, setFormData] = useState<EventFormData>({
-    title: initialData?.title || '',
-    description: initialData?.description || '',
-    startTime: initialData?.startTime || (initialStart ? formatDateTimeLocal(initialStart) : ''),
-    endTime: initialData?.endTime || (initialEnd ? formatDateTimeLocal(initialEnd) : ''),
-    location: initialData?.location || '',
-    color: initialData?.color || '#3b82f6',
-    allDay: initialData?.allDay || false,
+    title: '',
+    description: '',
+    startTime: '',
+    endTime: '',
+    location: '',
+    color: '#3b82f6', // Will be updated on mount
+    allDay: false,
+    generateImage: false,
   })
+  
+  // Update default color when theme changes
+  useEffect(() => {
+    const updateColor = () => {
+      if (!isEdit && !initialData?.color) {
+        setFormData(prev => ({
+          ...prev,
+          color: prev.color === '#3b82f6' ? getDefaultEventColor() : prev.color
+        }))
+      }
+    }
+    updateColor()
+    window.addEventListener('theme-updated', updateColor)
+    return () => window.removeEventListener('theme-updated', updateColor)
+  }, [isEdit, initialData])
 
   // Reset form when modal opens/closes or when initial values change
   useEffect(() => {
     if (isOpen) {
       if (isEdit && initialData) {
         // Edit mode - use initialData
+        // Convert ISO dates to local datetime format for datetime-local inputs
+        const formatForInput = (dateString: string) => {
+          if (!dateString) return ''
+          const date = new Date(dateString)
+          // Get local date/time components
+          const year = date.getFullYear()
+          const month = String(date.getMonth() + 1).padStart(2, '0')
+          const day = String(date.getDate()).padStart(2, '0')
+          const hours = String(date.getHours()).padStart(2, '0')
+          const minutes = String(date.getMinutes()).padStart(2, '0')
+          return `${year}-${month}-${day}T${hours}:${minutes}`
+        }
+        
         setFormData({
           title: initialData.title || '',
           description: initialData.description || '',
-          startTime: initialData.startTime || '',
-          endTime: initialData.endTime || '',
+          startTime: formatForInput(initialData.startTime || ''),
+          endTime: formatForInput(initialData.endTime || ''),
           location: initialData.location || '',
-          color: initialData.color || '#3b82f6',
+          color: initialData.color || getDefaultEventColor(),
           allDay: initialData.allDay || false,
+          generateImage: false,
         })
       } else if (initialStart && initialEnd) {
         // New event with selected slot - use initialStart/initialEnd
@@ -76,8 +116,9 @@ export default function CreateEventModal({
           startTime: formatDateTimeLocal(initialStart),
           endTime: formatDateTimeLocal(initialEnd),
           location: '',
-          color: '#3b82f6',
+          color: getDefaultEventColor(),
           allDay: false,
+          generateImage: false,
         })
       } else {
         // New event without selected slot - reset to empty
@@ -87,8 +128,9 @@ export default function CreateEventModal({
           startTime: '',
           endTime: '',
           location: '',
-          color: '#3b82f6',
+          color: getDefaultEventColor(),
           allDay: false,
+          generateImage: false,
         })
       }
     }
@@ -101,22 +143,31 @@ export default function CreateEventModal({
     setLoading(true)
     try {
       await onSubmit(formData)
+      // Only close if onSubmit succeeds (doesn't throw)
       onClose()
     } catch (error) {
       console.error('Failed to create event:', error)
+      // Keep modal open on error so user can fix and retry
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
-        <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-2xl font-bold text-gray-900">{isEdit ? 'Edit Event' : 'Create Event'}</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="modern-modal w-full max-w-2xl mx-4">
+        <div className="flex justify-between items-center p-6 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+          <h2 className="text-2xl font-bold text-3d" style={{ color: 'var(--text-primary)' }}>{isEdit ? 'Edit Event' : 'Create Event'}</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-primary)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-secondary)'
+            }}
           >
             <X className="w-6 h-6" />
           </button>
@@ -124,31 +175,42 @@ export default function CreateEventModal({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
               Event Title *
             </label>
             <input
               type="text"
               required
-              value={formData.title}
+              value={formData.title || ''}
               onChange={(e) =>
                 setFormData({ ...formData, title: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 rounded-md focus:outline-none focus:ring-2"
+              style={{
+                color: 'var(--text-primary)',
+                backgroundColor: 'var(--background-color)',
+                border: `1px solid var(--border-color)`,
+                focusRingColor: 'var(--primary-color)',
+              }}
               placeholder="Team meeting"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
               Description
             </label>
             <textarea
-              value={formData.description}
+              value={formData.description || ''}
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 rounded-md focus:outline-none focus:ring-2"
+              style={{
+                color: 'var(--text-primary)',
+                backgroundColor: 'var(--background-color)',
+                border: `1px solid var(--border-color)`,
+              }}
               rows={3}
               placeholder="Event details..."
             />
@@ -156,63 +218,77 @@ export default function CreateEventModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                 Start Time *
               </label>
               <input
                 type="datetime-local"
                 required
-                value={formData.startTime}
+                value={formData.startTime || ''}
                 onChange={(e) =>
                   setFormData({ ...formData, startTime: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="modern-input w-full px-3 py-2 focus:outline-none"
+                style={{
+                  color: 'var(--text-primary)',
+                }}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                 End Time *
               </label>
               <input
                 type="datetime-local"
                 required
-                value={formData.endTime}
+                value={formData.endTime || ''}
                 onChange={(e) =>
                   setFormData({ ...formData, endTime: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="modern-input w-full px-3 py-2 focus:outline-none"
+                style={{
+                  color: 'var(--text-primary)',
+                }}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
               Location
             </label>
             <input
               type="text"
-              value={formData.location}
+              value={formData.location || ''}
               onChange={(e) =>
                 setFormData({ ...formData, location: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 rounded-md focus:outline-none focus:ring-2"
+              style={{
+                color: 'var(--text-primary)',
+                backgroundColor: 'var(--background-color)',
+                border: `1px solid var(--border-color)`,
+              }}
               placeholder="Conference Room A"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                 Color
               </label>
               <input
                 type="color"
-                value={formData.color}
+                value={formData.color || getDefaultEventColor()}
                 onChange={(e) =>
                   setFormData({ ...formData, color: e.target.value })
                 }
-                className="w-full h-10 px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full h-10 px-1 py-1 rounded-md focus:outline-none focus:ring-2"
+                style={{
+                  border: `1px solid var(--border-color)`,
+                }}
               />
             </div>
 
@@ -220,30 +296,74 @@ export default function CreateEventModal({
               <input
                 type="checkbox"
                 id="allDay"
-                checked={formData.allDay}
+                checked={formData.allDay || false}
                 onChange={(e) =>
                   setFormData({ ...formData, allDay: e.target.checked })
                 }
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                className="w-4 h-4 rounded focus:ring-2"
+                style={{
+                  accentColor: 'var(--primary-color)',
+                  borderColor: 'var(--border-color)',
+                }}
               />
-              <label htmlFor="allDay" className="ml-2 text-sm text-gray-700">
+              <label htmlFor="allDay" className="ml-2 text-sm" style={{ color: 'var(--text-primary)' }}>
                 All Day Event
               </label>
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          {!isEdit && (
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="generateImage"
+                checked={formData.generateImage || false}
+                onChange={(e) =>
+                  setFormData({ ...formData, generateImage: e.target.checked })
+                }
+                className="w-4 h-4 rounded focus:ring-2"
+                style={{
+                  accentColor: 'var(--primary-color)',
+                  borderColor: 'var(--border-color)',
+                }}
+              />
+              <label htmlFor="generateImage" className="ml-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+                Generate AI Image for Event
+              </label>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t" style={{ borderColor: 'var(--border-color)' }}>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              className="px-4 py-2 rounded-md transition-colors"
+              style={{
+                color: 'var(--text-primary)',
+                backgroundColor: 'var(--surface-color)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = '0.8'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '1'
+              }}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 text-white rounded-md disabled:opacity-50 transition-opacity"
+              style={{ backgroundColor: 'var(--primary-color)' }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.opacity = '0.9'
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '1'
+              }}
             >
               {loading ? (isEdit ? 'Updating...' : 'Creating...') : (isEdit ? 'Update Event' : 'Create Event')}
             </button>
