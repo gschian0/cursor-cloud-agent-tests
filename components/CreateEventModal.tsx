@@ -157,7 +157,7 @@ export default function CreateEventModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="modern-modal w-full max-w-2xl mx-4">
         <div className="flex justify-between items-center p-6 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-          <h2 className="text-2xl font-bold text-3d" style={{ color: 'var(--text-primary)' }}>{isEdit ? 'Edit Event' : 'Create Event'}</h2>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{isEdit ? 'Edit Event' : 'Create Event'}</h2>
           <button
             onClick={onClose}
             className="transition-colors"

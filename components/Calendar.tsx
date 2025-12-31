@@ -35,7 +35,7 @@ interface CalendarEvent {
 interface CalendarComponentProps {
   events: CalendarEvent[]
   onSelectEvent?: (event: CalendarEvent) => void
-  onSelectSlot?: (slotInfo: { start: Date; end: Date }) => void
+  onSelectSlot?: (slotInfo: { start: Date; end: Date }, e?: React.SyntheticEvent) => void
 }
 
 export default function CalendarComponent({
@@ -161,9 +161,9 @@ export default function CalendarComponent({
   }, [events, loadingImages])
 
   const handleSelectSlot = useCallback(
-    (slotInfo: { start: Date; end: Date }) => {
+    (slotInfo: { start: Date; end: Date; action?: string }, e?: React.SyntheticEvent) => {
       if (onSelectSlot) {
-        onSelectSlot(slotInfo)
+        onSelectSlot({ start: slotInfo.start, end: slotInfo.end }, e)
       }
     },
     [onSelectSlot]

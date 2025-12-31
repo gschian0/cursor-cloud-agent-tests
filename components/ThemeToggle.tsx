@@ -18,39 +18,102 @@ export default function ThemeToggle() {
     applyTheme(theme)
   }, [theme])
 
+  // Listen for theme changes from other components (like ThemeSelector)
+  useEffect(() => {
+    const handleThemeUpdate = () => {
+      const savedTheme = localStorage.getItem('color-theme') as Theme
+      if (savedTheme && savedTheme !== theme) {
+        setTheme(savedTheme)
+      }
+    }
+
+    window.addEventListener('theme-updated', handleThemeUpdate)
+    return () => window.removeEventListener('theme-updated', handleThemeUpdate)
+  }, [theme])
+
   const applyTheme = (newTheme: Theme) => {
     if (typeof window === 'undefined') return
 
     const root = document.documentElement
     
-    // Check if there's a custom theme saved
-    const customTheme = localStorage.getItem('custom-theme')
+    // Check if there's a custom theme saved (new format with both versions)
+    let customThemeLight = localStorage.getItem('custom-theme-light')
+    let customThemeDark = localStorage.getItem('custom-theme-dark')
     
-    // If custom theme exists, preserve it but adjust for light/dark mode
-    if (customTheme) {
+    // Try to load from new JSON format
+    const customThemeJson = localStorage.getItem('custom-theme')
+    if (customThemeJson) {
       try {
-        const rootMatch = customTheme.match(/:root\s*\{([\s\S]*?)\}/)
-        if (rootMatch && rootMatch[1]) {
-          const cssVars = rootMatch[1]
-          const varMatches = cssVars.matchAll(/--([\w-]+):\s*([^;]+);/g)
+        const themeData = JSON.parse(customThemeJson)
+        if (themeData.light) customThemeLight = themeData.light
+        if (themeData.dark) customThemeDark = themeData.dark
+      } catch (e) {
+        // If not JSON, treat as old format (single CSS string)
+        const oldTheme = customThemeJson
+        if (oldTheme && !oldTheme.startsWith('{')) {
+          customThemeLight = oldTheme
+          customThemeDark = oldTheme
+        }
+      }
+    }
+    
+    // If custom theme exists, apply the appropriate version
+    if (customThemeLight || customThemeDark) {
+      try {
+        const cssToApply = newTheme === 'dark' && customThemeDark 
+          ? customThemeDark 
+          : (customThemeLight || customThemeDark || '')
+        
+        if (cssToApply) {
+          // Extract CSS variables based on selector
+          let cssVars = ''
           
-          // Apply custom theme variables
-          for (const match of varMatches) {
-            const varName = `--${match[1]}`
-            const varValue = match[2].trim()
-            root.style.setProperty(varName, varValue)
-          }
-          
-          // Only update text-3d-color based on light/dark mode
           if (newTheme === 'dark') {
-            root.style.setProperty('--text-3d-color', 'rgba(0, 0, 0, 0.5)')
+            const darkMatch = cssToApply.match(/\[data-theme="dark"\]\s*\{([\s\S]*?)\}/)
+            if (darkMatch && darkMatch[1]) {
+              cssVars = darkMatch[1]
+            } else {
+              // Fallback to :root
+              const rootMatch = cssToApply.match(/:root\s*\{([\s\S]*?)\}/)
+              if (rootMatch && rootMatch[1]) {
+                cssVars = rootMatch[1]
+              }
+            }
           } else {
-            root.style.setProperty('--text-3d-color', 'rgba(0, 0, 0, 0.3)')
+            const rootMatch = cssToApply.match(/:root\s*\{([\s\S]*?)\}(?=\s*\/\*|\s*\[|$)/)
+            if (rootMatch && rootMatch[1]) {
+              cssVars = rootMatch[1]
+            }
           }
           
-          localStorage.setItem('color-theme', newTheme)
-          window.dispatchEvent(new Event('theme-updated'))
-          return
+          if (cssVars) {
+            const varMatches = cssVars.matchAll(/--([\w-]+):\s*([^;]+);/g)
+            
+            // Apply custom theme variables
+            for (const match of varMatches) {
+              const varName = `--${match[1]}`
+              const varValue = match[2].trim()
+              root.style.setProperty(varName, varValue)
+            }
+            
+            // Update text-3d-color based on light/dark mode
+            if (newTheme === 'dark') {
+              root.style.setProperty('--text-3d-color', 'rgba(0, 0, 0, 0.5)')
+            } else {
+              root.style.setProperty('--text-3d-color', 'rgba(0, 0, 0, 0.3)')
+            }
+            
+            // Set data-theme attribute for dark mode
+            if (newTheme === 'dark') {
+              root.setAttribute('data-theme', 'dark')
+            } else {
+              root.removeAttribute('data-theme')
+            }
+            
+            localStorage.setItem('color-theme', newTheme)
+            window.dispatchEvent(new Event('theme-updated'))
+            return
+          }
         }
       } catch (error) {
         console.error('Failed to apply custom theme:', error)
@@ -85,6 +148,7 @@ export default function ThemeToggle() {
       root.style.setProperty('--text-weight-semibold', '600')
       root.style.setProperty('--text-weight-bold', '700')
       root.style.setProperty('--text-3d-color', 'rgba(0, 0, 0, 0.5)')
+      root.setAttribute('data-theme', 'dark')
     } else {
       // Light mode colors
       root.style.setProperty('--primary-color', '#3b82f6')
@@ -112,6 +176,7 @@ export default function ThemeToggle() {
       root.style.setProperty('--text-weight-semibold', '600')
       root.style.setProperty('--text-weight-bold', '700')
       root.style.setProperty('--text-3d-color', 'rgba(0, 0, 0, 0.3)')
+      root.removeAttribute('data-theme')
     }
 
     localStorage.setItem('color-theme', newTheme)

@@ -17,6 +17,7 @@ import ContactsList from '@/components/ContactsList'
 import AiAssistant from '@/components/AiAssistant'
 import ThemeChat from '@/components/ThemeChat'
 import ImageGenerator from '@/components/ImageGenerator'
+import ClockTimePicker from '@/components/ClockTimePicker'
 
 interface Event {
   id: string
@@ -45,6 +46,7 @@ interface Contact {
   position?: string
   notes?: string
   tags: string[]
+  imageUrl?: string
 }
 
 export default function DashboardClient() {
@@ -59,7 +61,11 @@ export default function DashboardClient() {
   const [showContactDetailsModal, setShowContactDetailsModal] = useState(false)
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null)
+  const [showClockPicker, setShowClockPicker] = useState(false)
+  const [clockPickerPosition, setClockPickerPosition] = useState<{ x: number; y: number } | undefined>()
+  const [clockPickerDate, setClockPickerDate] = useState<Date>(new Date())
   const [loading, setLoading] = useState(true)
+  const [isDarkMode, setIsDarkMode] = useState(false)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -123,7 +129,11 @@ export default function DashboardClient() {
 
       if (contactsRes.ok) {
         const contactsData = await contactsRes.json()
-        setContacts(contactsData)
+        console.log('Refreshed contacts:', contactsData?.length || 0, 'contacts')
+        setContacts(contactsData || [])
+      } else {
+        const errorData = await contactsRes.json().catch(() => ({}))
+        console.error('Failed to fetch contacts during refresh:', contactsRes.status, errorData)
       }
     } catch (error) {
       console.error('Failed to refresh data:', error)
@@ -138,6 +148,19 @@ export default function DashboardClient() {
     }
     loadData()
   }, [status, loadData])
+
+  useEffect(() => {
+    // Check dark mode
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('color-theme')
+      setIsDarkMode(theme === 'dark')
+    }
+    checkDarkMode()
+    
+    // Listen for theme changes
+    window.addEventListener('theme-updated', checkDarkMode)
+    return () => window.removeEventListener('theme-updated', checkDarkMode)
+  }, [])
 
   const handleCreateEvent = async (eventData: EventFormData) => {
     console.log('[DashboardClient] handleCreateEvent called', { 
@@ -235,51 +258,138 @@ export default function DashboardClient() {
     }
   }
 
-  const handleSelectEvent = async (event: { id: string; title: string; start: Date; end: Date; description?: string; location?: string; color?: string; allDay?: boolean }) => {
+  const handleSelectEvent = (event: { id: string; title: string; start: Date; end: Date; description?: string; location?: string; color?: string; allDay?: boolean }) => {
     console.log('[DashboardClient] handleSelectEvent called', { eventId: event.id })
     
-    // Try to get the latest event data from the server
-    try {
-      const response = await fetch(`/api/events/${event.id}`)
-      if (response.ok) {
-        const latestEvent = await response.json()
-        console.log('[DashboardClient] Fetched latest event data', { 
-          eventId: latestEvent.id,
-          hasImageUrl: !!latestEvent.imageUrl 
-        })
-        setSelectedEvent(latestEvent)
-        setShowEventDetailsModal(true)
-        return
-      }
-    } catch (error) {
-      console.warn('[DashboardClient] Failed to fetch latest event, using cached data', error)
-    }
-    
-    // Fallback to cached event data
+    // Open modal instantly with cached event data
     const fullEvent = events.find(e => e.id === event.id)
     if (fullEvent) {
-      console.log('[DashboardClient] Using cached event data', { 
+      console.log('[DashboardClient] Opening modal instantly with cached event data', { 
         eventId: fullEvent.id,
         hasImageUrl: !!fullEvent.imageUrl 
       })
       setSelectedEvent(fullEvent)
       setShowEventDetailsModal(true)
+    } else {
+      // If event not found in cache, use the provided event data
+      const eventData: Event = {
+        id: event.id,
+        title: event.title,
+        startTime: event.start.toISOString(),
+        endTime: event.end.toISOString(),
+        description: event.description || undefined,
+        location: event.location || undefined,
+        color: event.color || '#3b82f6',
+        allDay: event.allDay || false,
+      }
+      setSelectedEvent(eventData)
+      setShowEventDetailsModal(true)
     }
+    
+    // Fetch latest event data in the background and update if different
+    fetch(`/api/events/${event.id}`)
+      .then(response => {
+        if (response.ok) {
+          return response.json()
+        }
+        throw new Error('Failed to fetch event')
+      })
+      .then(latestEvent => {
+        console.log('[DashboardClient] Fetched latest event data in background', { 
+          eventId: latestEvent.id,
+          hasImageUrl: !!latestEvent.imageUrl 
+        })
+        // Only update if modal is still open and event is still selected
+        setSelectedEvent(prev => {
+          if (prev && prev.id === latestEvent.id) {
+            return latestEvent
+          }
+          return prev
+        })
+      })
+      .catch(error => {
+        console.warn('[DashboardClient] Failed to fetch latest event in background', error)
+        // Modal is already open with cached data, so this is fine
+      })
   }
 
   const handleCreateContact = async (contactData: ContactFormData) => {
+    console.log('[DashboardClient] handleCreateContact called', { contactData })
+    
     try {
+      // Clean up empty strings to null for optional fields
+      const cleanedData = {
+        ...contactData,
+        phone: contactData.phone || null,
+        company: contactData.company || null,
+        position: contactData.position || null,
+        notes: contactData.notes || null,
+        imageUrl: contactData.imageUrl || null,
+      }
+      
+      console.log('[DashboardClient] Sending POST to /api/contacts', { cleanedData })
+      
       const response = await fetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(contactData),
+        body: JSON.stringify(cleanedData),
       })
 
-      if (response.ok) {
-        await refreshData() // Refresh to get fresh data
+      console.log('[DashboardClient] Contact creation response', { 
+        status: response.status, 
+        ok: response.ok,
+        statusText: response.statusText
+      })
+
+      if (!response.ok) {
+        // Try to get error message from response
+        let errorMessage = 'Failed to create contact'
+        try {
+          const contentType = response.headers.get('content-type')
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json()
+            console.error('[DashboardClient] Error response data:', errorData)
+            errorMessage = errorData.error || errorData.message || errorMessage
+          } else {
+            const text = await response.text()
+            console.error('[DashboardClient] Error response text:', text)
+            errorMessage = text || errorMessage
+          }
+        } catch (parseError) {
+          console.error('[DashboardClient] Failed to parse error response:', parseError)
+          errorMessage = `Failed to create contact (${response.status} ${response.statusText})`
+        }
+        throw new Error(errorMessage)
       }
+
+      // Success - get the new contact
+      const newContact = await response.json()
+      console.log('[DashboardClient] Contact created successfully:', { 
+        contactId: newContact.id,
+        firstName: newContact.firstName,
+        lastName: newContact.lastName,
+        hasImageUrl: !!newContact.imageUrl
+      })
+      
+      // Optimistically add to contacts list immediately
+      setContacts(prevContacts => [newContact, ...prevContacts])
+      
+      // Then refresh to get any generated image or updated data
+      console.log('[DashboardClient] Refreshing data to get full contact details...')
+      await refreshData()
+      console.log('[DashboardClient] Contact creation flow complete')
     } catch (error) {
-      console.error('Failed to create contact:', error)
+      console.error('[DashboardClient] Failed to create contact:', error)
+      if (error instanceof Error) {
+        console.error('[DashboardClient] Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        })
+      }
+      // On error, refresh to ensure we have the correct state
+      await refreshData()
+      throw error // Re-throw so modal can handle it
     }
   }
 
@@ -324,25 +434,36 @@ export default function DashboardClient() {
     setShowContactDetailsModal(true)
   }
 
-  const handleSelectSlot = (slotInfo: { start: Date; end: Date }) => {
-    // When clicking on a day, set start to beginning of day and end to 1 hour later
+  const handleSelectSlot = (slotInfo: { start: Date; end: Date }, e?: React.SyntheticEvent) => {
     const start = new Date(slotInfo.start)
     const end = new Date(slotInfo.end || slotInfo.start)
     
-    // If clicking on a day without specific time (month view), set default times
-    // Check if it's at midnight (likely a day click rather than time slot click)
+    // If clicking on a day without specific time (month view), show clock picker
     if (start.getHours() === 0 && start.getMinutes() === 0 && start.getSeconds() === 0) {
-      start.setHours(9, 0, 0, 0) // Default to 9 AM
-      end.setTime(start.getTime())
-      end.setHours(start.getHours() + 1) // Default to 1 hour duration
-    } else if (start.getTime() === end.getTime() || !slotInfo.end) {
-      // If start and end are the same, add 1 hour
-      end.setTime(start.getTime())
-      end.setHours(start.getHours() + 1)
+      // Center the clock picker on screen
+      setClockPickerPosition(undefined) // undefined = center
+      setClockPickerDate(start)
+      setShowClockPicker(true)
+    } else {
+      // If time is already set, proceed directly to event modal
+      if (start.getTime() === end.getTime() || !slotInfo.end) {
+        end.setTime(start.getTime())
+        end.setHours(start.getHours() + 1)
+      }
+      setSelectedSlot({ start, end })
+      setShowEventModal(true)
     }
+  }
+
+  const handleClockTimeSelect = (time: Date) => {
+    const start = new Date(clockPickerDate)
+    start.setHours(time.getHours(), time.getMinutes(), 0, 0)
+    const end = new Date(start)
+    end.setHours(start.getHours() + 1)
     
     setSelectedSlot({ start, end })
     setShowEventModal(true)
+    setShowClockPicker(false)
   }
 
   const calendarEvents = events.map((event) => ({
@@ -375,48 +496,45 @@ export default function DashboardClient() {
 
   return (
     <div className="min-h-screen" style={{ 
-      background: `linear-gradient(135deg, 
-        var(--gradient-start, #eff6ff) 0%,
-        var(--gradient-end, #dbeafe) 50%,
-        var(--background-color, #ffffff) 100%)`,
-      backgroundAttachment: 'fixed'
+      background: `linear-gradient(to bottom right, var(--gradient-start, #eff6ff), var(--gradient-end, #dbeafe))`,
+      backgroundColor: 'var(--background-color, #ffffff)'
     }}>
       {/* Header */}
       <HeaderBackground>
-        <header style={{ 
-          backgroundColor: 'rgba(255, 255, 255, 0.85)', 
-          backdropFilter: 'blur(24px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(200%)',
-          color: 'var(--header-text)',
-          borderBottom: '1.5px solid rgba(255, 255, 255, 0.4)',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)'
-        }} className="relative z-10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <header 
+          className={`modern-header ${isDarkMode ? 'modern-header-dark' : ''} relative z-10`}
+          style={{ 
+            color: 'var(--header-text)',
+          }}
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
             <div className="flex justify-between items-center">
-              <HeaderLogo />
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
+                <HeaderLogo />
+              </div>
+              <div className="flex items-center gap-2.5">
                 {session?.user?.email ? (
-                  <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{session.user.email}</span>
+                  <div className="modern-user-badge" style={{ color: 'var(--text-primary)' }}>
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span className="hidden sm:inline">{session.user.email}</span>
+                  </div>
                 ) : null}
-                <ThemeSelector />
-                <SaveThemeButton />
-                <ThemeToggle />
+                <div className="flex items-center gap-2">
+                  <ThemeSelector />
+                  <SaveThemeButton />
+                  <ThemeToggle />
+                </div>
                 <button
                   onClick={handleSignOut}
-                  className="flex items-center gap-2 px-4 py-2 rounded-md transition-colors"
+                  className="modern-header-button flex items-center gap-2"
                   style={{
                     color: 'var(--text-primary)',
-                    backgroundColor: 'transparent',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--surface-color)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent'
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    borderColor: 'rgba(239, 68, 68, 0.2)',
                   }}
                 >
-                  <LogOut className="w-4 h-4" style={{ color: 'var(--text-primary)' }} />
-                  <span style={{ color: 'var(--text-primary)' }}>Sign Out</span>
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">Sign Out</span>
                 </button>
               </div>
             </div>
@@ -425,120 +543,61 @@ export default function DashboardClient() {
       </HeaderBackground>
 
       {/* Navigation */}
-      <nav style={{ 
-        backgroundColor: 'rgba(255, 255, 255, 0.8)', 
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        borderBottomColor: 'rgba(255, 255, 255, 0.3)',
-        borderBottomWidth: '1.5px',
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
-      }} className="border-b">
+      <nav 
+        className={`modern-nav ${isDarkMode ? 'modern-nav-dark' : ''}`}
+        style={{ color: 'var(--header-text)' }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-8">
+          <div className="flex gap-6 overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveTab('calendar')}
-              className="py-4 px-2 border-b-2 font-medium text-sm transition-colors"
+              className={`modern-nav-button ${activeTab === 'calendar' ? 'active' : ''}`}
               style={{
-                borderBottomColor: activeTab === 'calendar' ? 'var(--primary-color)' : 'transparent',
                 color: activeTab === 'calendar' ? 'var(--primary-color)' : 'var(--text-secondary)',
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== 'calendar') {
-                  e.currentTarget.style.color = 'var(--text-primary)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== 'calendar') {
-                  e.currentTarget.style.color = 'var(--text-secondary)'
-                }
               }}
             >
               <CalendarIcon className="inline w-4 h-4 mr-2" style={{ color: 'inherit' }} />
-              Calendar
+              <span className="whitespace-nowrap">Calendar</span>
             </button>
             <button
               onClick={() => setActiveTab('contacts')}
-              className="py-4 px-2 border-b-2 font-medium text-sm transition-colors"
+              className={`modern-nav-button ${activeTab === 'contacts' ? 'active' : ''}`}
               style={{
-                borderBottomColor: activeTab === 'contacts' ? 'var(--primary-color)' : 'transparent',
                 color: activeTab === 'contacts' ? 'var(--primary-color)' : 'var(--text-secondary)',
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== 'contacts') {
-                  e.currentTarget.style.color = 'var(--text-primary)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== 'contacts') {
-                  e.currentTarget.style.color = 'var(--text-secondary)'
-                }
               }}
             >
               <Users className="inline w-4 h-4 mr-2" style={{ color: 'inherit' }} />
-              Contacts ({contacts.length})
+              <span className="whitespace-nowrap">Contacts ({contacts.length})</span>
             </button>
             <button
               onClick={() => setActiveTab('ai')}
-              className="py-4 px-2 border-b-2 font-medium text-sm transition-colors"
+              className={`modern-nav-button ${activeTab === 'ai' ? 'active' : ''}`}
               style={{
-                borderBottomColor: activeTab === 'ai' ? 'var(--primary-color)' : 'transparent',
                 color: activeTab === 'ai' ? 'var(--primary-color)' : 'var(--text-secondary)',
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== 'ai') {
-                  e.currentTarget.style.color = 'var(--text-primary)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== 'ai') {
-                  e.currentTarget.style.color = 'var(--text-secondary)'
-                }
               }}
             >
               <Sparkles className="inline w-4 h-4 mr-2" style={{ color: 'inherit' }} />
-              AI
+              <span className="whitespace-nowrap">AI</span>
             </button>
             <button
               onClick={() => setActiveTab('theme')}
-              className="py-4 px-2 border-b-2 font-medium text-sm transition-colors"
+              className={`modern-nav-button ${activeTab === 'theme' ? 'active' : ''}`}
               style={{
-                borderBottomColor: activeTab === 'theme' ? 'var(--primary-color)' : 'transparent',
                 color: activeTab === 'theme' ? 'var(--primary-color)' : 'var(--text-secondary)',
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== 'theme') {
-                  e.currentTarget.style.color = 'var(--text-primary)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== 'theme') {
-                  e.currentTarget.style.color = 'var(--text-secondary)'
-                }
               }}
             >
               <Palette className="inline w-4 h-4 mr-2" style={{ color: 'inherit' }} />
-              Theme
+              <span className="whitespace-nowrap">Theme</span>
             </button>
             <button
               onClick={() => setActiveTab('image')}
-              className="py-4 px-2 border-b-2 font-medium text-sm transition-colors"
+              className={`modern-nav-button ${activeTab === 'image' ? 'active' : ''}`}
               style={{
-                borderBottomColor: activeTab === 'image' ? 'var(--primary-color)' : 'transparent',
                 color: activeTab === 'image' ? 'var(--primary-color)' : 'var(--text-secondary)',
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== 'image') {
-                  e.currentTarget.style.color = 'var(--text-primary)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== 'image') {
-                  e.currentTarget.style.color = 'var(--text-secondary)'
-                }
               }}
             >
               <ImageIcon className="inline w-4 h-4 mr-2" style={{ color: 'inherit' }} />
-              Image
+              <span className="whitespace-nowrap">Image</span>
             </button>
           </div>
         </div>
@@ -548,8 +607,16 @@ export default function DashboardClient() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'calendar' ? (
           <div className="embossed p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-3xl font-bold text-3d" style={{ color: 'var(--text-primary)' }}>Your Calendar</h2>
+            <div className="mb-6">
+              <h2 className="text-3xl font-bold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
+                <CalendarIcon className="w-8 h-8" style={{ color: 'var(--primary-color)' }} />
+                Your Calendar
+              </h2>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Manage your events and schedule. Click on any day to create an event or click on an event to view details.
+              </p>
+            </div>
+            <div className="mb-6 flex justify-end">
               <button
                 onClick={() => setShowEventModal(true)}
                 className="modern-button flex items-center gap-2 px-4 py-2 text-white"
@@ -566,8 +633,16 @@ export default function DashboardClient() {
           </div>
         ) : activeTab === 'contacts' ? (
           <div className="embossed p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-3xl font-bold text-3d" style={{ color: 'var(--text-primary)' }}>Your Contacts</h2>
+            <div className="mb-6">
+              <h2 className="text-3xl font-bold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
+                <Users className="w-8 h-8" style={{ color: 'var(--primary-color)' }} />
+                Your Contacts
+              </h2>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Manage your contacts and relationships. Keep track of important people in your network!
+              </p>
+            </div>
+            <div className="mb-6 flex justify-end">
               <button
                 onClick={() => setShowContactModal(true)}
                 className="modern-button flex items-center gap-2 px-4 py-2 text-white"
@@ -582,7 +657,7 @@ export default function DashboardClient() {
             />
           </div>
         ) : activeTab === 'theme' ? (
-          <div className="embossed p-6">
+          <div className="embossed p-3 sm:p-6" style={{ height: 'calc(100vh - 250px)', maxHeight: 'calc(100vh - 250px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <ThemeChat />
           </div>
         ) : activeTab === 'image' ? (
@@ -596,19 +671,41 @@ export default function DashboardClient() {
               contacts={contacts} 
               onDataChange={refreshData}
               onEventSelect={(event) => {
-                handleSelectEvent(event)
+                // Convert EventLike to format expected by handleSelectEvent
+                handleSelectEvent({
+                  id: event.id,
+                  title: event.title,
+                  start: new Date(event.startTime),
+                  end: new Date(event.endTime),
+                  description: event.description,
+                  location: event.location,
+                  color: event.color,
+                  allDay: event.allDay,
+                })
                 setActiveTab('calendar')
               }}
               onContactSelect={(contact) => {
-                handleSelectContact(contact)
+                // Convert ContactLike to Contact format
+                handleSelectContact({
+                  ...contact,
+                  tags: contact.tags || []
+                })
                 setActiveTab('contacts')
               }}
             />
           </div>
-        )}
+        )}'
       </main>
 
       {/* Modals */}
+      <ClockTimePicker
+        isOpen={showClockPicker}
+        initialTime={clockPickerDate}
+        onClose={() => setShowClockPicker(false)}
+        onTimeSelect={handleClockTimeSelect}
+        position={clockPickerPosition}
+      />
+
       <CreateEventModal
         isOpen={showEventModal}
         onClose={() => {

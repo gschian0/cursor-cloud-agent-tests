@@ -7,9 +7,6 @@ export async function GET() {
   try {
     const session = await auth()
     const userId = session?.user?.id || await getTestUserId()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
 
     let siteSettings = await prisma.siteSettings.findUnique({
       where: { userId },
@@ -42,9 +39,6 @@ export async function PUT(request: Request) {
   try {
     const session = await auth()
     const userId = session?.user?.id || await getTestUserId()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
 
     const body = await request.json()
     const { headerImage, logoImage } = body

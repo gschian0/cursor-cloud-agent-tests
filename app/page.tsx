@@ -1,12 +1,7 @@
 import DashboardClient from "./DashboardClient"
-import { auth } from "@/lib/auth"
-import { redirect } from "next/navigation"
 
 export default async function Home() {
-  const session = await auth()
-  if (!session) {
-    redirect("/auth/signin")
-  }
-
+  // Allow access without authentication - API routes will use test user fallback
+  // This enables testing mode as documented
   return <DashboardClient />
 }

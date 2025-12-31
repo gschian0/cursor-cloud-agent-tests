@@ -98,3 +98,26 @@ export async function POST(request: Request) {
   }
 }
 
+export async function DELETE() {
+  try {
+    const session = await auth()
+    const userId = session?.user?.id || await getTestUserId()
+
+    // Delete all themes for this user
+    const result = await prisma.theme.deleteMany({
+      where: {
+        userId,
+      },
+    })
+
+    return NextResponse.json({ 
+      success: true, 
+      deletedCount: result.count,
+      message: `Deleted ${result.count} theme(s)` 
+    })
+  } catch (error) {
+    console.error('Failed to delete themes:', error)
+    return NextResponse.json({ error: 'Failed to delete themes' }, { status: 500 })
+  }
+}
+

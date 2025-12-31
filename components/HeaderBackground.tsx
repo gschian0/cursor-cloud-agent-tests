@@ -1,12 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 export default function HeaderBackground({ children }: { children: React.ReactNode }) {
   const [headerImage, setHeaderImage] = useState<string | null>(null)
+  const loadedRef = useRef(false)
 
   useEffect(() => {
-    loadHeaderImage()
+    if (!loadedRef.current) {
+      loadedRef.current = true
+      loadHeaderImage()
+    }
   }, [])
 
   const loadHeaderImage = async () => {

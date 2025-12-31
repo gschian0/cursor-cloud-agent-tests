@@ -222,12 +222,12 @@ export default function EventDetailsModal({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
       <div 
-        className="modern-modal w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
+        className="modern-modal w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 border-b px-6 py-4 flex justify-between items-center" style={{ backgroundColor: 'transparent', borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-          <h2 className="text-2xl font-bold text-3d" style={{ color: 'var(--text-primary)' }}>Event Details</h2>
+        <div className="border-b px-6 py-3 flex justify-between items-center flex-shrink-0" style={{ backgroundColor: 'transparent', borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+          <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Event Details</h2>
           <button
             onClick={onClose}
             className="transition-colors"
@@ -239,19 +239,19 @@ export default function EventDetailsModal({
               e.currentTarget.style.color = 'var(--text-secondary)'
             }}
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 space-y-4 flex-1 min-h-0 overflow-hidden">
           {/* Event Image */}
-          <div className="w-full h-64 rounded-lg overflow-hidden mb-4" style={{ backgroundColor: 'var(--surface-color)' }}>
+          <div className="w-full rounded-lg overflow-hidden flex items-center justify-center" style={{ backgroundColor: 'var(--surface-color)', minHeight: '200px', maxHeight: '320px' }}>
             {currentEvent.imageUrl ? (
               <img 
                 src={currentEvent.imageUrl} 
                 alt={currentEvent.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full max-h-[320px] object-contain"
                 onError={(e) => {
                   // Show placeholder if image fails to load
                   const target = e.currentTarget
@@ -288,16 +288,16 @@ export default function EventDetailsModal({
           {/* Title */}
           <div>
             <div 
-              className="inline-block px-3 py-1 rounded-md text-white font-semibold mb-3"
+              className="inline-block px-2 py-0.5 rounded-md text-white text-xs font-semibold mb-2"
               style={{ backgroundColor: currentEvent.color || '#3b82f6' }}
             >
               {currentEvent.allDay ? 'All Day' : ''}
             </div>
-            <h3 className="text-3xl font-bold text-3d mb-2" style={{ color: 'var(--text-primary)' }}>{currentEvent.title}</h3>
+            <h3 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>{currentEvent.title}</h3>
           </div>
 
           {/* Date & Time */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             <div className="flex items-start gap-3">
               <Calendar className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} />
               <div>
@@ -343,7 +343,7 @@ export default function EventDetailsModal({
                 <div className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} />
                 <div>
                   <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Contact</p>
-                  <p className="text-base font-semibold text-3d-subtle" style={{ color: 'var(--text-primary)' }}>
+                  <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
                     {currentEvent.contact.firstName} {currentEvent.contact.lastName}
                   </p>
                 </div>
@@ -353,7 +353,7 @@ export default function EventDetailsModal({
         </div>
 
         {/* Actions */}
-        <div className="sticky bottom-0 border-t px-6 py-4 flex justify-end gap-3" style={{ backgroundColor: 'var(--surface-color)', borderColor: 'var(--border-color)' }}>
+        <div className="border-t px-4 py-3 flex justify-end gap-3 flex-shrink-0" style={{ backgroundColor: 'var(--surface-color)', borderColor: 'var(--border-color)' }}>
           <button
             onClick={handleDelete}
             disabled={isDeleting}

@@ -78,6 +78,59 @@ body {
     1px 1px 0 var(--text-3d-color, rgba(0, 0, 0, 0.15));
 }
 
+/* Modern 3D Header Text Effect - Solid Gradient with Theme Colors */
+/* 
+ * EDIT THIS CLASS to customize the "AI Calendar" header text style
+ * Location: app/globals.css, lines 82-130
+ * 
+ * To edit: Change font-size, letter-spacing, colors, or text-shadow values below
+ */
+.header-3d-text {
+  font-weight: 900;
+  font-size: 1.5rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  position: relative;
+  display: inline-block;
+  /* Solid gradient color - crisp rendering without background-clip */
+  color: var(--primary-color);
+  /* Maximum crispness - no blur */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+  /* Sharp text shadows with gradient effect - whole pixels only, no blur radius */
+  text-shadow: 
+    /* Gradient effect via layered colored shadows */
+    0 0 0 var(--primary-color),
+    1px 1px 0 var(--secondary-color),
+    2px 2px 0 var(--secondary-color),
+    /* White inner border - crisp 1px */
+    -1px -1px 0 rgba(255, 255, 255, 1),
+    1px -1px 0 rgba(255, 255, 255, 1),
+    -1px 1px 0 rgba(255, 255, 255, 1),
+    1px 1px 0 rgba(255, 255, 255, 1),
+    /* Primary color border - crisp 2px */
+    -2px -2px 0 var(--primary-color),
+    2px -2px 0 var(--primary-color),
+    -2px 2px 0 var(--primary-color),
+    2px 2px 0 var(--primary-color),
+    /* Secondary color outer border - crisp 3px */
+    -3px -3px 0 var(--secondary-color),
+    3px -3px 0 var(--secondary-color),
+    -3px 3px 0 var(--secondary-color),
+    3px 3px 0 var(--secondary-color),
+    /* Single sharp drop shadow - no blur */
+    0 4px 0 rgba(0, 0, 0, 0.3);
+  /* No transforms or filters */
+  transform: none;
+  filter: none;
+  will-change: auto;
+  /* Clean edges */
+  -webkit-text-stroke: 0 transparent;
+  text-stroke: 0 transparent;
+}
+
+
 /* Apply theme text sizes */
 h1 { font-size: var(--text-size-3xl); font-weight: var(--text-weight-bold); }
 h2 { font-size: var(--text-size-2xl); font-weight: var(--text-weight-semibold); }
@@ -475,5 +528,64 @@ label {
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* Mobile optimizations for iPhone and small screens */
+@media (max-width: 768px) {
+  /* Ensure proper scrolling on mobile */
+  .embossed {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    max-height: calc(100vh - 180px) !important;
+    padding: 1rem !important;
+  }
+  
+  /* Prevent horizontal overflow */
+  body, html {
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
+  }
+  
+  /* Touch-friendly buttons - minimum 44px for iOS */
+  button, .modern-header-button, .modern-nav-button {
+    min-height: 44px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Better text input on mobile - prevents zoom on iOS */
+  input[type="text"],
+  input[type="email"],
+  input[type="url"],
+  input[type="tel"],
+  textarea {
+    font-size: 16px !important;
+  }
+  
+  /* Ensure theme chat container scrolls properly */
+  .theme-chat-container {
+    height: 100%;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Fix for mobile viewport */
+  @supports (-webkit-touch-callout: none) {
+    /* iOS Safari specific */
+    .embossed {
+      max-height: calc(100vh - 200px);
+    }
+  }
 }
 

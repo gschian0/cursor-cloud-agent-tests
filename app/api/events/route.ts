@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       
       // Fire and forget - generate image in background
       // IMPORTANT: Don't await - let it run asynchronously
-      const imagePromise = generateEventImageAsync(event.id, title, description || '', color || '#3b82f6')
+      const imagePromise = generateEventImageAsync(event.id, title, description || '', color || '#3b82f6', startTime)
       console.log('[POST /api/events] Async function called, promise created')
       
       imagePromise

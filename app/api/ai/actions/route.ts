@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
+import { getTestUserId } from '@/lib/test-user'
 import { prisma } from '@/lib/db'
 
 type ActionType = 
@@ -18,10 +19,7 @@ interface ActionRequest {
 export async function POST(request: Request) {
   try {
     const session = await auth()
-    const userId = session?.user?.id
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const userId = session?.user?.id || await getTestUserId()
 
     const body: ActionRequest = await request.json()
     const { action, data } = body
@@ -76,7 +74,7 @@ export async function POST(request: Request) {
             generateImageValue: data.generateImage
           })
           
-          generateEventImageAsync(result.id, data.title, data.description || '', data.color || '#3b82f6')
+          generateEventImageAsync(result.id, data.title, data.description || '', data.color || '#3b82f6', data.startTime)
             .then(() => {
               console.log('[AI Actions] Background image generation completed', { eventId: result.id })
             })

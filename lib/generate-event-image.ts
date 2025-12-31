@@ -4,12 +4,31 @@ import { generateGeminiImage } from './generate-gemini-image'
 // Async function to generate and update event image
 // Uses the same shared function that the working Image tab uses
 // Export it so it can be used by other routes
-export async function generateEventImageAsync(eventId: string, title: string, description: string, color: string) {
-  console.log('[generateEventImageAsync] Starting async image generation', { eventId, title, description, color })
+export async function generateEventImageAsync(eventId: string, title: string, description: string, color: string, startTime?: string | Date) {
+  console.log('[generateEventImageAsync] Starting async image generation', { eventId, title, description, color, startTime })
   
   try {
+    // Format the event date for the prompt
+    let dateContext = ''
+    if (startTime) {
+      const eventDate = new Date(startTime)
+      const dateStr = eventDate.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      })
+      const timeStr = eventDate.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      })
+      dateContext = ` The event is scheduled for ${dateStr} at ${timeStr}.`
+    }
+    
     // Use the same shared function that the working Image tab uses
-    const prompt = `Generate an image for a calendar event titled "${title}"${description ? ` with description: "${description}"` : ''}. The event color theme is ${color}. Create a visually appealing, abstract or symbolic representation suitable for a calendar event.`
+    // Customizable prompt - includes event date and context
+    const prompt = `Generate an image for a calendar event titled "${title}"${description ? ` with description: "${description}"` : ''}.${dateContext} The event color theme is ${color}. Create a visually appealing, abstract or symbolic representation suitable for a calendar event that reflects the event's date and context.`
     
     console.log('[generateEventImageAsync] Calling generateGeminiImage with prompt', { promptLength: prompt.length })
     

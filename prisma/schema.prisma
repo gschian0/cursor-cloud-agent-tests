@@ -95,6 +95,7 @@ model Contact {
   position  String?
   notes     String?  @db.Text
   tags      String[] @default([])
+  imageUrl  String?  @db.Text
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   events    Event[]

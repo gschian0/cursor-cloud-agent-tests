@@ -25,6 +25,7 @@ type ContactLike = {
   position?: string
   notes?: string
   tags?: string[]
+  imageUrl?: string
 }
 
 

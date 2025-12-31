@@ -12,6 +12,7 @@ interface Contact {
   position?: string
   notes?: string
   tags: string[]
+  imageUrl?: string
 }
 
 interface ContactsListProps {
@@ -22,7 +23,7 @@ interface ContactsListProps {
 export default function ContactsList({ contacts, onContactSelect }: ContactsListProps) {
   return (
     <div className="rounded-lg shadow-lg p-6" style={{ backgroundColor: 'var(--surface-color)' }}>
-      <h2 className="text-2xl font-bold text-3d mb-4" style={{ color: 'var(--text-primary)' }}>Contacts</h2>
+      <h2 className="text-2xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Contacts</h2>
       
       {contacts.length === 0 ? (
         <p className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
@@ -42,7 +43,7 @@ export default function ContactsList({ contacts, onContactSelect }: ContactsList
             >
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-3d-subtle mb-2" style={{ color: 'var(--text-primary)' }}>
+                  <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
                     {contact.firstName} {contact.lastName}
                   </h3>
                   

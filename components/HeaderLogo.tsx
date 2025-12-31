@@ -1,14 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Calendar as CalendarIcon } from 'lucide-react'
 
 export default function HeaderLogo() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const loadedRef = useRef(false)
 
   useEffect(() => {
-    loadLogo()
+    if (!loadedRef.current) {
+      loadedRef.current = true
+      loadLogo()
+    }
   }, [])
 
   const loadLogo = async () => {
@@ -69,23 +73,32 @@ export default function HeaderLogo() {
     return (
       <div className="flex items-center gap-3">
         <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--header-text)' }}>AI Calendar</h1>
+        <h1 className="header-3d-text" data-text="AI Calendar">AI Calendar</h1>
       </div>
     )
   }
 
   return (
-    <div className="flex items-center gap-3">
-      {logoUrl ? (
-        <img 
-          src={logoUrl} 
-          alt="AI Calendar Logo" 
-          className="w-8 h-8 object-contain"
-        />
-      ) : (
-        <CalendarIcon className="w-8 h-8" style={{ color: 'var(--primary-color)' }} />
-      )}
-      <h1 className="text-2xl font-bold" style={{ color: 'var(--header-text)' }}>AI Calendar</h1>
+    <div className="flex items-center gap-4 group">
+      <div className="relative">
+        {logoUrl ? (
+          <div className="relative w-10 h-10 rounded-xl overflow-hidden ring-2 ring-white/20 shadow-lg transition-all duration-300 group-hover:ring-white/40 group-hover:scale-105">
+            <img 
+              src={logoUrl} 
+              alt="AI Calendar Logo" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ) : (
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 ring-2 ring-white/20 shadow-lg transition-all duration-300 group-hover:ring-white/40 group-hover:scale-105">
+            <CalendarIcon className="w-6 h-6 text-white" />
+          </div>
+        )}
+        <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl opacity-20 blur-xl group-hover:opacity-30 transition-opacity duration-300"></div>
+      </div>
+      <h1 className="header-3d-text relative" data-text="AI Calendar">
+        <span className="relative z-10">AI Calendar</span>
+      </h1>
     </div>
   )
 }

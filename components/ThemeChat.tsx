@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, Palette, RotateCcw, Save, Trash2, Download } from 'lucide-react'
+import { Send, Bot, User, Palette, RotateCcw, Save, Trash2, Download, Image as ImageIcon, X } from 'lucide-react'
+import { extractColorsFromImage, imageFileToDataUrl } from '@/lib/color-extraction'
 
 type Message = {
   role: 'user' | 'assistant'
@@ -38,6 +39,30 @@ export default function ThemeChat() {
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [themeName, setThemeName] = useState("")
   const [savingTheme, setSavingTheme] = useState(false)
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
+  const [extractedColors, setExtractedColors] = useState<string[]>([])
+  const [extractingColors, setExtractingColors] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const isApplyingCSSRef = useRef(false) // Prevent infinite loop
+  const [currentThemeMode, setCurrentThemeMode] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('color-theme') || 'light') as 'light' | 'dark'
+    }
+    return 'light'
+  })
+
+  // Track current theme mode for timestamp styling
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const updateThemeMode = () => {
+        const mode = localStorage.getItem('color-theme') || 'light'
+        setCurrentThemeMode(mode as 'light' | 'dark')
+      }
+      updateThemeMode()
+      window.addEventListener('theme-updated', updateThemeMode)
+      return () => window.removeEventListener('theme-updated', updateThemeMode)
+    }
+  }, [])
 
   // Load current theme from CSS variables
   useEffect(() => {
@@ -86,39 +111,75 @@ export default function ThemeChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  const applyCSS = (css: string) => {
+  const applyCSS = (css: string, skipEvent = false) => {
     if (typeof window === 'undefined') return
+    
+    // Prevent infinite loop - if we're already applying CSS, don't do it again
+    if (isApplyingCSSRef.current) {
+      return
+    }
+    
+    isApplyingCSSRef.current = true
 
-    const root = document.documentElement
-
-    // Extract CSS variables from the CSS string
-    const rootMatch = css.match(/:root\s*\{([\s\S]*?)\}/)
-    if (rootMatch && rootMatch[1]) {
-      const cssVars = rootMatch[1]
-      const varMatches = cssVars.matchAll(/--([\w-]+):\s*([^;]+);/g)
+    try {
+      const root = document.documentElement
+      const currentMode = localStorage.getItem('color-theme') || 'light'
       
-      // Apply each CSS variable to the document root globally
-      for (const match of varMatches) {
-        const varName = `--${match[1]}`
-        const varValue = match[2].trim()
-        root.style.setProperty(varName, varValue)
-      }
-
-      // Also ensure all text styling variables are set if not present
-      const computed = getComputedStyle(root)
-      if (!computed.getPropertyValue('--text-size-base')) {
-        root.style.setProperty('--text-size-base', '16px')
-      }
-      if (!computed.getPropertyValue('--text-3d-color')) {
-        const isDark = localStorage.getItem('color-theme') === 'dark'
-        root.style.setProperty('--text-3d-color', isDark ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.3)')
-      }
-
-      // Save to localStorage
-      localStorage.setItem('custom-theme', css)
+      // Handle both :root and [data-theme="dark"] selectors
+      let cssVars = ''
       
-      // Force a re-render by dispatching a custom event
-      window.dispatchEvent(new Event('theme-updated'))
+      if (currentMode === 'dark') {
+        // Try to extract dark mode CSS
+        const darkMatch = css.match(/\[data-theme="dark"\]\s*\{([\s\S]*?)\}/)
+        if (darkMatch && darkMatch[1]) {
+          cssVars = darkMatch[1]
+        } else {
+          // Fallback to :root if no dark mode found
+          const rootMatch = css.match(/:root\s*\{([\s\S]*?)\}/)
+          if (rootMatch && rootMatch[1]) {
+            cssVars = rootMatch[1]
+          }
+        }
+      } else {
+        // Extract light mode CSS
+        const rootMatch = css.match(/:root\s*\{([\s\S]*?)\}(?=\s*\/\*|\s*\[|$)/)
+        if (rootMatch && rootMatch[1]) {
+          cssVars = rootMatch[1]
+        }
+      }
+      
+      if (cssVars) {
+        const varMatches = cssVars.matchAll(/--([\w-]+):\s*([^;]+);/g)
+        
+        // Apply each CSS variable to the document root globally
+        for (const match of varMatches) {
+          const varName = `--${match[1]}`
+          const varValue = match[2].trim()
+          root.style.setProperty(varName, varValue)
+        }
+
+        // Also ensure all text styling variables are set if not present
+        const computed = getComputedStyle(root)
+        if (!computed.getPropertyValue('--text-size-base')) {
+          root.style.setProperty('--text-size-base', '16px')
+        }
+        if (!computed.getPropertyValue('--text-3d-color')) {
+          root.style.setProperty('--text-3d-color', currentMode === 'dark' ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.3)')
+        }
+        
+        // Only dispatch event if not explicitly skipped (to prevent infinite loop)
+        if (!skipEvent) {
+          // Use setTimeout to ensure this happens after the current call stack
+          setTimeout(() => {
+            window.dispatchEvent(new Event('theme-updated'))
+          }, 0)
+        }
+      }
+    } finally {
+      // Reset the flag after a short delay to allow the event to process
+      setTimeout(() => {
+        isApplyingCSSRef.current = false
+      }, 100)
     }
   }
 
@@ -229,9 +290,40 @@ export default function ThemeChat() {
   // Load saved theme on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('custom-theme')
-      if (saved) {
-        applyCSS(saved)
+      const currentMode = localStorage.getItem('color-theme') || 'light'
+      
+      // Try new format first (JSON with both versions)
+      const savedJson = localStorage.getItem('custom-theme')
+      if (savedJson) {
+        try {
+          const themeData = JSON.parse(savedJson)
+          if (themeData.light || themeData.dark) {
+            const cssToApply = currentMode === 'dark' && themeData.dark 
+              ? themeData.dark 
+              : (themeData.light || themeData.dark || '')
+            if (cssToApply) {
+              applyCSS(cssToApply)
+              // Also save individual versions for backward compatibility
+              if (themeData.light) localStorage.setItem('custom-theme-light', themeData.light)
+              if (themeData.dark) localStorage.setItem('custom-theme-dark', themeData.dark)
+            }
+            return
+          }
+        } catch (e) {
+          // Not JSON, try old format
+        }
+      }
+      
+      // Try individual version files
+      const savedLight = localStorage.getItem('custom-theme-light')
+      const savedDark = localStorage.getItem('custom-theme-dark')
+      if (savedLight || savedDark) {
+        const cssToApply = currentMode === 'dark' && savedDark 
+          ? savedDark 
+          : (savedLight || savedDark || '')
+        if (cssToApply) {
+          applyCSS(cssToApply)
+        }
       } else {
         // Load default theme from database if available
         loadDefaultTheme()
@@ -258,6 +350,30 @@ export default function ThemeChat() {
         const themes = await res.json()
         const defaultTheme = themes.find((t: any) => t.isDefault)
         if (defaultTheme) {
+          const currentMode = localStorage.getItem('color-theme') || 'light'
+          
+          // Try to parse as JSON (new format with both versions)
+          let themeData
+          try {
+            themeData = JSON.parse(defaultTheme.css)
+            if (themeData.light || themeData.dark) {
+              const cssToApply = currentMode === 'dark' && themeData.dark 
+                ? themeData.dark 
+                : (themeData.light || themeData.dark || '')
+              if (cssToApply) {
+                applyCSS(cssToApply)
+                // Save to localStorage
+                localStorage.setItem('custom-theme', JSON.stringify(themeData))
+                if (themeData.light) localStorage.setItem('custom-theme-light', themeData.light)
+                if (themeData.dark) localStorage.setItem('custom-theme-dark', themeData.dark)
+              }
+              return
+            }
+          } catch (e) {
+            // Not JSON, use as single CSS string
+          }
+          
+          // Old format - single CSS string
           applyCSS(defaultTheme.css)
         }
       }
@@ -266,37 +382,93 @@ export default function ThemeChat() {
     }
   }
 
-  const run = async (userPrompt: string) => {
-    if (!userPrompt.trim()) return
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload an image file')
+      return
+    }
+
+    try {
+      setExtractingColors(true)
+      setError("")
+      
+      // Convert to data URL
+      const imageUrl = await imageFileToDataUrl(file)
+      setUploadedImage(imageUrl)
+      
+      // Extract colors
+      const colors = await extractColorsFromImage(imageUrl, 5)
+      setExtractedColors(colors)
+      
+      // Auto-generate theme from image
+      const colorDescription = colors.join(', ')
+      const imagePrompt = `Create a theme based on these colors extracted from an uploaded image: ${colorDescription}. Use these colors as the primary palette and create a cohesive, modern theme that works in both light and dark modes.`
+      
+      // Automatically run theme generation
+      await run(imagePrompt, imageUrl, colors)
+    } catch (error) {
+      console.error('Failed to process image:', error)
+      setError('Failed to extract colors from image')
+      setExtractingColors(false)
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  const clearUploadedImage = () => {
+    setUploadedImage(null)
+    setExtractedColors([])
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const run = async (userPrompt: string, imageUrl?: string, colors?: string[]) => {
+    if (!userPrompt.trim() && !imageUrl) return
 
     // Add user message to conversation
     const userMessage: Message = {
       role: 'user',
-      content: userPrompt,
+      content: imageUrl ? `Generate theme from uploaded image with colors: ${colors?.join(', ')}` : userPrompt,
       timestamp: new Date()
     }
     setMessages(prev => [...prev, userMessage])
     setPrompt("")
     setLoading(true)
     setError("")
+    setExtractingColors(false)
 
     try {
       // Get current light/dark mode preference
       const colorTheme = localStorage.getItem('color-theme') || 'light'
       
+      // Prepare request body
+      const requestBody: any = {
+        prompt: userPrompt || `Create a theme based on colors extracted from an uploaded image: ${colors?.join(', ')}`,
+        conversationHistory: messages.map(m => ({
+          role: m.role,
+          content: m.content
+        })),
+        currentTheme: currentTheme,
+        colorTheme: colorTheme,
+      }
+
+      // Add image data if available
+      if (imageUrl && colors && colors.length > 0) {
+        requestBody.imageUrl = imageUrl
+        requestBody.extractedColors = colors
+      }
+      
       // Send conversation history along with the new prompt
       const res = await fetch("/api/theme", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: userPrompt,
-          conversationHistory: messages.map(m => ({
-            role: m.role,
-            content: m.content
-          })),
-          currentTheme: currentTheme,
-          colorTheme: colorTheme, // Pass light/dark mode preference
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       const data = await res.json().catch(() => null)
@@ -306,23 +478,38 @@ export default function ThemeChat() {
         return
       }
 
-      // Apply the CSS immediately
-      if (data.css) {
-        applyCSS(data.css)
-        // Update current theme state
-        setCurrentTheme(data.css)
-        // Save to localStorage for persistence
-        localStorage.setItem('custom-theme', data.css)
+      // Apply the CSS immediately - use light or dark version based on current mode
+      if (data.cssLight || data.css) {
+        const currentMode = localStorage.getItem('color-theme') || 'light'
+        const cssToApply = currentMode === 'dark' && data.cssDark ? data.cssDark : (data.cssLight || data.css)
         
-        // Auto-save theme with generated name
+        applyCSS(cssToApply)
+        
+        // Store both versions in a structured format
+        const themeData = {
+          light: data.cssLight || data.css,
+          dark: data.cssDark || data.css,
+        }
+        
+        // Update current theme state
+        setCurrentTheme(cssToApply)
+        
+        // Save both versions to localStorage
+        localStorage.setItem('custom-theme', JSON.stringify(themeData))
+        localStorage.setItem('custom-theme-light', data.cssLight || data.css)
+        localStorage.setItem('custom-theme-dark', data.cssDark || data.css)
+        
+        // Auto-save theme with generated name (save both versions)
         const themeName = generateThemeName(userPrompt)
         try {
+          // Store both versions in the CSS field as JSON
+          const themeCss = JSON.stringify(themeData)
           await fetch('/api/themes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               name: themeName,
-              css: data.css,
+              css: themeCss, // Store both versions as JSON
               isDefault: false,
             }),
           })
@@ -415,6 +602,32 @@ export default function ThemeChat() {
       const res = await fetch(`/api/themes/${themeId}`)
       if (res.ok) {
         const theme = await res.json()
+        const currentMode = localStorage.getItem('color-theme') || 'light'
+        
+        // Try to parse as JSON (new format with both versions)
+        let themeData
+        try {
+          themeData = JSON.parse(theme.css)
+          if (themeData.light || themeData.dark) {
+            const cssToApply = currentMode === 'dark' && themeData.dark 
+              ? themeData.dark 
+              : (themeData.light || themeData.dark || '')
+            if (cssToApply) {
+              applyCSS(cssToApply)
+              setCurrentTheme(cssToApply)
+              // Save both versions
+              localStorage.setItem('custom-theme', JSON.stringify(themeData))
+              if (themeData.light) localStorage.setItem('custom-theme-light', themeData.light)
+              if (themeData.dark) localStorage.setItem('custom-theme-dark', themeData.dark)
+            }
+            setError("")
+            return
+          }
+        } catch (e) {
+          // Not JSON, use as single CSS string
+        }
+        
+        // Old format - single CSS string
         applyCSS(theme.css)
         setCurrentTheme(theme.css)
         localStorage.setItem('custom-theme', theme.css)
@@ -424,6 +637,34 @@ export default function ThemeChat() {
       setError('Failed to load theme')
     }
   }
+  
+  // Listen for theme changes to switch between light/dark versions
+  useEffect(() => {
+    const handleThemeChange = () => {
+      // Skip if we're already applying CSS to prevent infinite loop
+      if (isApplyingCSSRef.current) {
+        return
+      }
+      
+      const currentMode = localStorage.getItem('color-theme') || 'light'
+      const savedLight = localStorage.getItem('custom-theme-light')
+      const savedDark = localStorage.getItem('custom-theme-dark')
+      
+      if (savedLight || savedDark) {
+        const cssToApply = currentMode === 'dark' && savedDark 
+          ? savedDark 
+          : (savedLight || savedDark || '')
+        if (cssToApply) {
+          // Pass skipEvent=true to prevent dispatching another event
+          applyCSS(cssToApply, true)
+          setCurrentTheme(cssToApply)
+        }
+      }
+    }
+    
+    window.addEventListener('theme-updated', handleThemeChange)
+    return () => window.removeEventListener('theme-updated', handleThemeChange)
+  }, [])
 
   const handleDeleteTheme = async (themeId: string) => {
     if (!confirm('Are you sure you want to delete this theme?')) return
@@ -461,27 +702,45 @@ export default function ThemeChat() {
     }
   }
 
+  // Helper function to get contrasting text color
+  const getContrastColor = (hexColor: string): string => {
+    // Remove # if present
+    const hex = hexColor.replace('#', '')
+    
+    // Convert to RGB
+    const r = parseInt(hex.substring(0, 2), 16)
+    const g = parseInt(hex.substring(2, 4), 16)
+    const b = parseInt(hex.substring(4, 6), 16)
+    
+    // Calculate luminance
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    
+    // Return black or white based on luminance
+    return luminance > 0.5 ? '#000000' : '#ffffff'
+  }
+
   return (
-    <div className="rounded-lg shadow-md p-6 flex flex-col h-full" style={{ backgroundColor: 'var(--surface-color)' }}>
-      <div className="flex items-start justify-between gap-4 mb-4">
-        <div>
-          <h2 className="text-3xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <Palette className="w-8 h-8" style={{ color: 'var(--primary-color)' }} />
-            Theme Designer
+    <div className="rounded-lg shadow-md p-3 sm:p-6 flex flex-col min-h-0 theme-chat-container" style={{ backgroundColor: 'var(--surface-color)', height: '100%', maxHeight: 'calc(100vh - 200px)' }}>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4 flex-shrink-0">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-xl sm:text-3xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Palette className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0" style={{ color: 'var(--primary-color)' }} />
+            <span className="truncate">Theme Designer</span>
           </h2>
-          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-1 text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>
             Chat with AI to customize your app's theme. Powered by Gemini 3 Pro.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0">
           {messages.length > 0 && (
             <button
               disabled={loading}
               onClick={clearConversation}
-              className="px-3 py-2 text-sm rounded-md disabled:opacity-60 flex items-center gap-2 transition-colors"
+              className="px-2 sm:px-3 py-2 text-xs sm:text-sm rounded-md disabled:opacity-60 flex items-center gap-1 sm:gap-2 transition-colors touch-manipulation"
               style={{
                 color: 'var(--text-primary)',
                 backgroundColor: 'var(--surface-color)',
+                minHeight: '44px', // iOS touch target
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = 'var(--border-color)'
@@ -490,16 +749,18 @@ export default function ThemeChat() {
                 e.currentTarget.style.backgroundColor = 'var(--surface-color)'
               }}
             >
-              Clear Chat
+              <span className="hidden sm:inline">Clear Chat</span>
+              <span className="sm:hidden">Clear</span>
             </button>
           )}
           <button
             disabled={loading}
             onClick={resetTheme}
-            className="px-3 py-2 text-sm rounded-md disabled:opacity-60 flex items-center gap-2 transition-colors"
+            className="px-2 sm:px-3 py-2 text-xs sm:text-sm rounded-md disabled:opacity-60 flex items-center gap-1 sm:gap-2 transition-colors touch-manipulation"
             style={{
               color: 'var(--text-primary)',
               backgroundColor: 'var(--surface-color)',
+              minHeight: '44px', // iOS touch target
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = 'var(--border-color)'
@@ -508,15 +769,20 @@ export default function ThemeChat() {
               e.currentTarget.style.backgroundColor = 'var(--surface-color)'
             }}
           >
-            <RotateCcw className="w-4 h-4" />
-            Reset Theme
+            <RotateCcw className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Reset Theme</span>
+            <span className="sm:hidden">Reset</span>
           </button>
         </div>
       </div>
 
       {/* Chat Messages */}
       <div 
-        className="flex-1 overflow-y-auto mb-4 space-y-4 min-h-[300px] max-h-[500px] pr-2"
+        className="flex-1 overflow-y-auto mb-4 space-y-4 min-h-[200px] sm:min-h-[300px] max-h-[calc(100vh-500px)] sm:max-h-[500px] pr-2 scrollbar-hide"
+        style={{ 
+          WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
+          overflowY: 'auto',
+        }}
       >
         {messages.length === 0 ? (
           <div className="text-center py-12" style={{ color: 'var(--text-secondary)' }}>
@@ -538,7 +804,7 @@ export default function ThemeChat() {
                 </div>
               )}
               <div
-                className="max-w-[80%] rounded-lg px-4 py-3"
+                className="max-w-[85%] sm:max-w-[80%] rounded-lg px-3 sm:px-4 py-2 sm:py-3 break-words"
                 style={{
                   backgroundColor: message.role === 'user' ? 'var(--primary-color)' : 'var(--surface-color)',
                   color: message.role === 'user' ? 'white' : 'var(--text-primary)',
@@ -558,7 +824,28 @@ export default function ThemeChat() {
                 <div
                   className="text-xs mt-1"
                   style={{
-                    color: message.role === 'user' ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)',
+                    // Always use bright white on dark backgrounds for legibility
+                    // Check both state and document attribute for dark mode
+                    color: (() => {
+                      if (typeof window === 'undefined') {
+                        return message.role === 'user' ? 'rgba(255,255,255,0.9)' : 'var(--text-secondary)'
+                      }
+                      
+                      // Check multiple sources for dark mode
+                      const storedMode = localStorage.getItem('color-theme') || 'light'
+                      const docMode = document.documentElement.getAttribute('data-theme')
+                      const isDark = storedMode === 'dark' || docMode === 'dark' || currentThemeMode === 'dark'
+                      
+                      // In dark mode, always use white for legibility
+                      if (isDark) {
+                        return '#ffffff'
+                      }
+                      
+                      // In light mode, user messages always white, assistant uses secondary
+                      return message.role === 'user' 
+                        ? 'rgba(255,255,255,0.9)' 
+                        : 'var(--text-secondary)'
+                    })(),
                   }}
                 >
                   {message.timestamp.toLocaleTimeString([], {
@@ -600,47 +887,143 @@ export default function ThemeChat() {
         </div>
       )}
 
-      {/* Input Area */}
-      <div className="space-y-2 border-t pt-4">
-        <div className="flex gap-2">
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  run(prompt)
-                }
-              }}
-              placeholder="Describe your theme... (e.g., 'dark mode', 'ocean blue', 'warm sunset')"
-              className="flex-1 min-h-[80px] max-h-[200px] rounded-md p-3 focus:outline-none resize-none"
-              style={{
-                color: 'var(--text-primary)',
-                backgroundColor: 'var(--background-color)',
-                border: `1px solid var(--border-color)`,
-              }}
-              disabled={loading}
-            />
-            <button
-              disabled={loading || prompt.trim().length === 0}
-              onClick={() => run(prompt)}
-              className="px-6 py-3 text-white rounded-md disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 h-fit transition-opacity"
-              style={{ backgroundColor: 'var(--primary-color)' }}
-              onMouseEnter={(e) => {
-                if (!loading && prompt.trim().length > 0) {
-                  e.currentTarget.style.opacity = '0.9'
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = '1'
-              }}
-            >
-              <Send className="w-4 h-4" />
-              {loading ? "Generating..." : "Apply"}
-            </button>
+      {/* Uploaded Image Preview */}
+      {uploadedImage && (
+        <div className="mb-4 p-3 sm:p-4 rounded-lg border flex-shrink-0" style={{ backgroundColor: 'var(--surface-color)', borderColor: 'var(--border-color)' }}>
+          <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+            <div className="relative flex-shrink-0">
+              <img 
+                src={uploadedImage} 
+                alt="Uploaded for theme generation" 
+                className="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-lg"
+                style={{ border: `1px solid var(--border-color)` }}
+              />
+              <button
+                onClick={clearUploadedImage}
+                className="absolute -top-2 -right-2 w-7 h-7 sm:w-6 sm:h-6 rounded-full flex items-center justify-center touch-manipulation"
+                style={{ 
+                  backgroundColor: 'var(--background-color)',
+                  border: `1px solid var(--border-color)`,
+                  color: 'var(--text-primary)',
+                  minWidth: '28px',
+                  minHeight: '28px',
+                }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 min-w-0 w-full sm:w-auto">
+              <p className="text-xs sm:text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                Extracted Colors:
+              </p>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {extractedColors.map((color, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs"
+                    style={{ 
+                      backgroundColor: color,
+                      color: getContrastColor(color),
+                      minHeight: '32px', // Touch-friendly
+                    }}
+                  >
+                    <div 
+                      className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 flex-shrink-0"
+                      style={{ 
+                        backgroundColor: color,
+                        borderColor: getContrastColor(color) === '#000' ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)'
+                      }}
+                    />
+                    <span className="font-mono font-semibold text-xs">{color}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Theme will be generated from these colors. You can add a text description to refine it.
+              </p>
+            </div>
+          </div>
         </div>
-        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-          Changes apply instantly. Save themes to your collection for later use.
+      )}
+
+      {/* Input Area */}
+      <div className="space-y-2 border-t pt-3 sm:pt-4 flex-shrink-0">
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept="image/*"
+          onChange={handleImageUpload}
+          className="hidden"
+          disabled={loading || extractingColors}
+        />
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading || extractingColors}
+            className="px-3 sm:px-4 py-2.5 sm:py-2 rounded-md disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-opacity border touch-manipulation"
+            style={{
+              color: 'var(--text-primary)',
+              backgroundColor: 'var(--background-color)',
+              borderColor: 'var(--border-color)',
+              minHeight: '44px', // iOS touch target
+            }}
+            onMouseEnter={(e) => {
+              if (!loading && !extractingColors) {
+                e.currentTarget.style.backgroundColor = 'var(--surface-color)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--background-color)'
+            }}
+          >
+            <ImageIcon className="w-4 h-4 flex-shrink-0" />
+            <span className="text-sm">{extractingColors ? 'Extracting...' : 'Upload Image'}</span>
+          </button>
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                run(prompt, uploadedImage || undefined, extractedColors.length > 0 ? extractedColors : undefined)
+              }
+            }}
+            placeholder={uploadedImage ? "Optionally add a description to refine the theme..." : "Describe your theme... (e.g., 'dark mode', 'ocean blue', 'warm sunset') or upload an image"}
+            className="flex-1 min-h-[80px] sm:min-h-[80px] max-h-[120px] sm:max-h-[200px] rounded-md p-3 focus:outline-none resize-none text-sm sm:text-base"
+            style={{
+              color: 'var(--text-primary)',
+              backgroundColor: 'var(--background-color)',
+              border: `1px solid var(--border-color)`,
+              fontSize: '16px', // Prevents zoom on iOS
+            }}
+            disabled={loading || extractingColors}
+          />
+          <button
+            disabled={loading || extractingColors || (prompt.trim().length === 0 && !uploadedImage)}
+            onClick={() => run(prompt, uploadedImage || undefined, extractedColors.length > 0 ? extractedColors : undefined)}
+            className="px-4 sm:px-6 py-3 text-white rounded-md disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-opacity touch-manipulation whitespace-nowrap"
+            style={{ 
+              backgroundColor: 'var(--primary-color)',
+              minHeight: '44px', // iOS touch target
+            }}
+            onMouseEnter={(e) => {
+              if (!loading && !extractingColors && (prompt.trim().length > 0 || uploadedImage)) {
+                e.currentTarget.style.opacity = '0.9'
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1'
+            }}
+          >
+            <Send className="w-4 h-4 flex-shrink-0" />
+            <span className="text-sm sm:text-base">
+              {loading ? "Generating..." : extractingColors ? "Extracting..." : "Apply"}
+            </span>
+          </button>
+        </div>
+        <p className="text-xs px-1" style={{ color: 'var(--text-secondary)' }}>
+          {uploadedImage ? 'Theme generated from image colors. Add text to refine.' : 'Upload an image to extract colors, or describe your theme. Changes apply instantly.'}
         </p>
       </div>
     </div>

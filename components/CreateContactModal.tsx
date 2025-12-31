@@ -20,6 +20,7 @@ export interface ContactFormData {
   position: string
   notes: string
   tags: string[]
+  imageUrl?: string
 }
 
 export default function CreateContactModal({
@@ -40,6 +41,7 @@ export default function CreateContactModal({
     position: '',
     notes: '',
     tags: [],
+    imageUrl: '',
   }))
 
   // Update form data when initialData changes (for editing)
@@ -54,6 +56,7 @@ export default function CreateContactModal({
         position: initialData.position || '',
         notes: initialData.notes || '',
         tags: initialData.tags || [],
+        imageUrl: initialData.imageUrl || '',
       })
     }
   }, [isEdit, initialData, isOpen])
@@ -75,6 +78,7 @@ export default function CreateContactModal({
           position: '',
           notes: '',
           tags: [],
+          imageUrl: '',
         })
         setTagInput('')
       }
@@ -104,7 +108,7 @@ export default function CreateContactModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="modern-modal w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b sticky top-0" style={{ backgroundColor: 'transparent', borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-          <h2 className="text-2xl font-bold text-3d" style={{ color: 'var(--text-primary)' }}>{isEdit ? 'Edit Contact' : 'Add Contact'}</h2>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{isEdit ? 'Edit Contact' : 'Add Contact'}</h2>
           <button
             onClick={onClose}
             className="transition-colors"
@@ -256,6 +260,27 @@ export default function CreateContactModal({
               rows={3}
               placeholder="Additional notes about this contact..."
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+              Profile Image URL
+            </label>
+            <input
+              type="url"
+              value={formData.imageUrl || ''}
+              onChange={(e) =>
+                setFormData({ ...formData, imageUrl: e.target.value })
+              }
+              className="modern-input w-full px-3 py-2 focus:outline-none"
+              style={{
+                color: 'var(--text-primary)',
+              }}
+              placeholder="Leave empty to auto-generate from contact info"
+            />
+            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+              If left empty, an image will be automatically generated based on the contact's information.
+            </p>
           </div>
 
           <div>
