@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { getTestUserId } from "@/lib/test-user"
 import { GoogleGenAI } from "@google/genai"
+import { validateThemePrompt, validateImageUrl, validateColor } from "@/lib/input-validator"
 
 type ConversationMessage = {
   role: 'user' | 'assistant'
@@ -19,6 +20,32 @@ export async function POST(request: Request) {
     const currentTheme = body?.currentTheme || ""
     const imageUrl = body?.imageUrl
     const extractedColors: string[] = body?.extractedColors || []
+
+    // Validate prompt if provided
+    if (prompt && prompt.trim().length > 0) {
+      const promptValidation = validateThemePrompt(prompt)
+      if (!promptValidation.valid) {
+        return NextResponse.json({ error: promptValidation.error || "Invalid prompt" }, { status: 400 })
+      }
+    }
+
+    // Validate image URL if provided
+    if (imageUrl) {
+      const urlValidation = validateImageUrl(imageUrl)
+      if (!urlValidation.valid) {
+        return NextResponse.json({ error: urlValidation.error || "Invalid image URL" }, { status: 400 })
+      }
+    }
+
+    // Validate extracted colors if provided
+    if (extractedColors && extractedColors.length > 0) {
+      for (const color of extractedColors) {
+        const colorValidation = validateColor(color)
+        if (!colorValidation.valid) {
+          return NextResponse.json({ error: `Invalid color in extracted colors: ${colorValidation.error || color}` }, { status: 400 })
+        }
+      }
+    }
 
     // Validate: need either a prompt or image with extracted colors
     if ((!prompt || prompt.trim().length === 0) && (!imageUrl || extractedColors.length === 0)) {

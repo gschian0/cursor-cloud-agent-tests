@@ -66,6 +66,22 @@ export default function CalendarComponent({
     return () => window.removeEventListener('theme-updated', handleThemeUpdate)
   }, [])
 
+  // Prevent clicks on popup overlay from triggering calendar slot selection
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      // If clicking on the popup overlay, stop propagation
+      if (target.closest('.rbc-overlay') || target.closest('.rbc-popup')) {
+        e.stopPropagation()
+        e.preventDefault()
+      }
+    }
+
+    // Use capture phase to catch events before they bubble
+    document.addEventListener('click', handleClick, true)
+    return () => document.removeEventListener('click', handleClick, true)
+  }, [])
+
   // Poll for images for events that don't have them yet and were recently created
   // Only show loading spinner for events created within the last 5 minutes
   // This ensures we only show spinners for events that are actively generating images
@@ -169,6 +185,15 @@ export default function CalendarComponent({
 
   const handleSelectSlot = useCallback(
     (slotInfo: { start: Date; end: Date; action?: string }, e?: React.SyntheticEvent) => {
+      // Prevent slot selection if clicking on the popup overlay
+      if (e && e.target) {
+        const target = e.target as HTMLElement
+        // Check if click is on the popup overlay or its children
+        if (target.closest('.rbc-overlay') || target.closest('.rbc-popup')) {
+          e.stopPropagation()
+          return
+        }
+      }
       if (onSelectSlot) {
         onSelectSlot({ start: slotInfo.start, end: slotInfo.end }, e)
       }
@@ -282,7 +307,10 @@ export default function CalendarComponent({
           display: 'flex', 
           alignItems: 'center', 
           gap: '2px',
-          padding: '1px 2px',
+          padding: '1px 4px',
+          margin: '1px 2px',
+          width: 'calc(100% - 4px)',
+          boxSizing: 'border-box',
         }}
       >
         {imageUrl ? (
@@ -666,6 +694,8 @@ export default function CalendarComponent({
         eventPropGetter={eventStyleGetter}
         components={components}
         popup
+        popupOffset={{ x: 10, y: 10 }}
+        eventLimit={2}
       />
       
       {/* Hover tooltip showing events in time grid */}

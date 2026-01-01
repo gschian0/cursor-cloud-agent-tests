@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { getTestUserId } from '@/lib/test-user'
 import { generateEventImageAsync } from '@/lib/generate-event-image'
+import { validateTextInput, validateImageUrl, validateColor } from '@/lib/input-validator'
 
 export async function GET(
   request: NextRequest,
@@ -57,6 +58,40 @@ export async function PUT(
 
     if (!title || !startTime || !endTime) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Validate text inputs
+    const titleValidation = validateTextInput(title, 200, "Title")
+    if (!titleValidation.valid) {
+      return NextResponse.json({ error: titleValidation.error }, { status: 400 })
+    }
+
+    if (description) {
+      const descriptionValidation = validateTextInput(description, 2000, "Description")
+      if (!descriptionValidation.valid) {
+        return NextResponse.json({ error: descriptionValidation.error }, { status: 400 })
+      }
+    }
+
+    if (location) {
+      const locationValidation = validateTextInput(location, 200, "Location")
+      if (!locationValidation.valid) {
+        return NextResponse.json({ error: locationValidation.error }, { status: 400 })
+      }
+    }
+
+    if (color) {
+      const colorValidation = validateColor(color)
+      if (!colorValidation.valid) {
+        return NextResponse.json({ error: colorValidation.error || "Invalid color" }, { status: 400 })
+      }
+    }
+
+    if (imageUrl) {
+      const urlValidation = validateImageUrl(imageUrl)
+      if (!urlValidation.valid) {
+        return NextResponse.json({ error: urlValidation.error || "Invalid image URL" }, { status: 400 })
+      }
     }
 
     // Verify event belongs to user

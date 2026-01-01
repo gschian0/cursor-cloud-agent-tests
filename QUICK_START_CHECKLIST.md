@@ -43,11 +43,11 @@ export function sanitizeCSS(css: string): string {
 ---
 
 ### Day 3: Create Input Validator
-- [ ] Create file: `lib/input-validator.ts`
-- [ ] Implement theme prompt validation (max length, dangerous keywords)
-- [ ] Implement color validation (hex format only)
-- [ ] Implement image file validation
-- [ ] Add validation to `components/ThemeChat.tsx`
+- [x] Create file: `lib/input-validator.ts`
+- [x] Implement theme prompt validation (max length, dangerous keywords)
+- [x] Implement color validation (hex format only)
+- [x] Implement image file validation
+- [x] Add validation to `components/ThemeChat.tsx`
 
 **Time**: 2-3 hours**
 **Output**: Input validation library
@@ -67,11 +67,11 @@ export function validateColor(color: string): boolean {
 ---
 
 ### Day 4: Test Security Fixes
-- [ ] Create test file: `__tests__/security/css-injection.test.ts`
-- [ ] Test CSS sanitizer with malicious inputs
-- [ ] Test input validator with various inputs
-- [ ] Fix any issues found
-- [ ] Update `SECURITY_AUDIT.md` with test results
+- [x] Create test file: `__tests__/security/css-injection.test.ts`
+- [x] Test CSS sanitizer with malicious inputs
+- [x] Test input validator with various inputs
+- [x] Fix any issues found
+- [x] Update `SECURITY_AUDIT.md` with test results
 
 **Time**: 2-3 hours**
 **Output**: Security tests passing
@@ -79,10 +79,10 @@ export function validateColor(color: string): boolean {
 ---
 
 ### Day 5: Integration & Documentation
-- [ ] Integrate sanitizer and validator throughout app
-- [ ] Update all components to use new security functions
-- [ ] Document security improvements in `SECURITY_AUDIT.md`
-- [ ] Update `GOALS_AND_ROADMAP.md` - check off completed items
+- [x] Integrate sanitizer and validator throughout app
+- [x] Update all components to use new security functions
+- [x] Document security improvements in `SECURITY_AUDIT.md`
+- [x] Update `GOALS_AND_ROADMAP.md` - check off completed items
 - [ ] Commit changes
 
 **Time**: 2-3 hours**

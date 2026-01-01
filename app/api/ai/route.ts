@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { getTestUserId } from "@/lib/test-user"
 import { GoogleGenAI } from "@google/genai"
+import { validateTextInput } from "@/lib/input-validator"
 
 type ConversationMessage = {
   role: 'user' | 'assistant'
@@ -20,6 +21,20 @@ export async function POST(request: Request) {
 
     if (typeof prompt !== "string" || prompt.trim().length === 0) {
       return NextResponse.json({ error: "Missing prompt" }, { status: 400 })
+    }
+
+    // Validate prompt
+    const promptValidation = validateTextInput(prompt, 5000, "Prompt")
+    if (!promptValidation.valid) {
+      return NextResponse.json({ error: promptValidation.error || "Invalid prompt" }, { status: 400 })
+    }
+
+    // Validate context if provided
+    if (context && context.trim().length > 0) {
+      const contextValidation = validateTextInput(context, 2000, "Context")
+      if (!contextValidation.valid) {
+        return NextResponse.json({ error: contextValidation.error || "Invalid context" }, { status: 400 })
+      }
     }
 
     const apiKey =

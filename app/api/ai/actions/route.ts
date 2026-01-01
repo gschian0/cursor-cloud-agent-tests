@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { getTestUserId } from '@/lib/test-user'
 import { prisma } from '@/lib/db'
+import { validateTextInput, validateImageUrl, validateColor } from '@/lib/input-validator'
 
 type ActionType = 
   | 'create_event'
@@ -107,6 +108,36 @@ export async function POST(request: Request) {
         if (!existingEvent || existingEvent.userId !== userId) {
           return NextResponse.json({ error: 'Event not found or unauthorized' }, { status: 404 })
         }
+
+        // Validate inputs if provided
+        if (data.title) {
+          const titleValidation = validateTextInput(data.title, 200, "Title")
+          if (!titleValidation.valid) {
+            return NextResponse.json({ error: titleValidation.error }, { status: 400 })
+          }
+        }
+
+        if (data.description !== undefined && data.description) {
+          const descValidation = validateTextInput(data.description, 2000, "Description")
+          if (!descValidation.valid) {
+            return NextResponse.json({ error: descValidation.error }, { status: 400 })
+          }
+        }
+
+        if (data.location !== undefined && data.location) {
+          const locValidation = validateTextInput(data.location, 200, "Location")
+          if (!locValidation.valid) {
+            return NextResponse.json({ error: locValidation.error }, { status: 400 })
+          }
+        }
+
+        if (data.color) {
+          const colorValidation = validateColor(data.color)
+          if (!colorValidation.valid) {
+            return NextResponse.json({ error: colorValidation.error || "Invalid color" }, { status: 400 })
+          }
+        }
+
         result = await prisma.event.update({
           where: { id: data.id },
           data: {
@@ -145,6 +176,62 @@ export async function POST(request: Request) {
         if (!data.firstName || !data.lastName || !data.email) {
           return NextResponse.json({ error: 'Missing required fields: firstName, lastName, email' }, { status: 400 })
         }
+
+        // Validate inputs
+        const firstNameValidation = validateTextInput(data.firstName, 100, "First name")
+        if (!firstNameValidation.valid) {
+          return NextResponse.json({ error: firstNameValidation.error }, { status: 400 })
+        }
+
+        const lastNameValidation = validateTextInput(data.lastName, 100, "Last name")
+        if (!lastNameValidation.valid) {
+          return NextResponse.json({ error: lastNameValidation.error }, { status: 400 })
+        }
+
+        const emailValidation = validateTextInput(data.email, 255, "Email")
+        if (!emailValidation.valid) {
+          return NextResponse.json({ error: emailValidation.error }, { status: 400 })
+        }
+
+        if (data.phone) {
+          const phoneValidation = validateTextInput(data.phone, 50, "Phone")
+          if (!phoneValidation.valid) {
+            return NextResponse.json({ error: phoneValidation.error }, { status: 400 })
+          }
+        }
+
+        if (data.company) {
+          const companyValidation = validateTextInput(data.company, 200, "Company")
+          if (!companyValidation.valid) {
+            return NextResponse.json({ error: companyValidation.error }, { status: 400 })
+          }
+        }
+
+        if (data.position) {
+          const positionValidation = validateTextInput(data.position, 200, "Position")
+          if (!positionValidation.valid) {
+            return NextResponse.json({ error: positionValidation.error }, { status: 400 })
+          }
+        }
+
+        if (data.notes) {
+          const notesValidation = validateTextInput(data.notes, 2000, "Notes")
+          if (!notesValidation.valid) {
+            return NextResponse.json({ error: notesValidation.error }, { status: 400 })
+          }
+        }
+
+        if (data.tags && Array.isArray(data.tags)) {
+          for (const tag of data.tags) {
+            if (typeof tag === 'string') {
+              const tagValidation = validateTextInput(tag, 50, "Tag")
+              if (!tagValidation.valid) {
+                return NextResponse.json({ error: `Invalid tag: ${tagValidation.error}` }, { status: 400 })
+              }
+            }
+          }
+        }
+
         result = await prisma.contact.create({
           data: {
             firstName: data.firstName,

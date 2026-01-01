@@ -679,18 +679,18 @@ export default function DashboardClient() {
                 <Users className="w-8 h-8" style={{ color: 'var(--primary-color)' }} />
                 Your Contacts
               </h2>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Manage your contacts and relationships. Keep track of important people in your network!
-              </p>
-            </div>
-            <div className="mb-6 flex justify-end">
-              <button
-                onClick={() => setShowContactModal(true)}
-                className="modern-button flex items-center gap-2 px-4 py-2 text-white"
-              >
-                <Plus className="w-4 h-4" />
-                Add Contact
-              </button>
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-sm flex-1" style={{ color: 'var(--text-secondary)' }}>
+                  Manage your contacts and relationships. Keep track of important people in your network!
+                </p>
+                <button
+                  onClick={() => setShowContactModal(true)}
+                  className="modern-button flex items-center gap-2 px-4 py-2 text-white whitespace-nowrap"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Contact
+                </button>
+              </div>
             </div>
             <ContactsList 
               contacts={contacts} 

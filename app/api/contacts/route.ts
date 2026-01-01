@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { getTestUserId } from '@/lib/test-user'
 import { generateContactImageAsync } from '@/lib/generate-contact-image'
+import { validateTextInput, validateImageUrl, validateColor } from '@/lib/input-validator'
 
 export async function GET() {
   try {
@@ -41,6 +42,71 @@ export async function POST(request: Request) {
 
     if (!firstName || !lastName || !email) {
       return NextResponse.json({ error: 'Missing required fields: firstName, lastName, and email are required' }, { status: 400 })
+    }
+
+    // Validate text inputs
+    const firstNameValidation = validateTextInput(firstName, 100, "First name")
+    if (!firstNameValidation.valid) {
+      return NextResponse.json({ error: firstNameValidation.error }, { status: 400 })
+    }
+
+    const lastNameValidation = validateTextInput(lastName, 100, "Last name")
+    if (!lastNameValidation.valid) {
+      return NextResponse.json({ error: lastNameValidation.error }, { status: 400 })
+    }
+
+    const emailValidation = validateTextInput(email, 255, "Email")
+    if (!emailValidation.valid) {
+      return NextResponse.json({ error: emailValidation.error }, { status: 400 })
+    }
+
+    // Validate optional fields
+    if (phone) {
+      const phoneValidation = validateTextInput(phone, 50, "Phone")
+      if (!phoneValidation.valid) {
+        return NextResponse.json({ error: phoneValidation.error }, { status: 400 })
+      }
+    }
+
+    if (company) {
+      const companyValidation = validateTextInput(company, 200, "Company")
+      if (!companyValidation.valid) {
+        return NextResponse.json({ error: companyValidation.error }, { status: 400 })
+      }
+    }
+
+    if (position) {
+      const positionValidation = validateTextInput(position, 200, "Position")
+      if (!positionValidation.valid) {
+        return NextResponse.json({ error: positionValidation.error }, { status: 400 })
+      }
+    }
+
+    if (notes) {
+      const notesValidation = validateTextInput(notes, 2000, "Notes")
+      if (!notesValidation.valid) {
+        return NextResponse.json({ error: notesValidation.error }, { status: 400 })
+      }
+    }
+
+    // Validate image URL if provided
+    if (imageUrl) {
+      const urlValidation = validateImageUrl(imageUrl)
+      if (!urlValidation.valid) {
+        return NextResponse.json({ error: urlValidation.error || "Invalid image URL" }, { status: 400 })
+      }
+    }
+
+    // Validate tags if provided
+    if (tags && Array.isArray(tags)) {
+      for (const tag of tags) {
+        if (typeof tag === 'string') {
+          const tagValidation = validateTextInput(tag, 50, "Tag")
+          if (!tagValidation.valid) {
+            return NextResponse.json({ error: `Invalid tag: ${tagValidation.error}` }, { status: 400 })
+          }
+        }
+      }
     }
 
     // Clean up empty strings to null

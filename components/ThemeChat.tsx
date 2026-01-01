@@ -5,6 +5,7 @@ import { Send, Bot, User, Palette, RotateCcw, Save, Trash2, Download, Image as I
 import { extractColorsFromImage, imageFileToDataUrl } from '@/lib/color-extraction'
 import { sanitizeCSSForApplication } from '@/lib/css-sanitizer'
 import { useSpeechRecognition } from '@/lib/useSpeechRecognition'
+import { validateThemePrompt, validateImageFile, validateColor, validateImageUrl } from '@/lib/input-validator'
 
 type Message = {
   role: 'user' | 'assistant'
@@ -440,8 +441,13 @@ export default function ThemeChat() {
     const file = event.target.files?.[0]
     if (!file) return
 
-    if (!file.type.startsWith('image/')) {
-      setError('Please upload an image file')
+    // Validate image file
+    const fileValidation = validateImageFile(file)
+    if (!fileValidation.valid) {
+      setError(fileValidation.error || 'Invalid image file')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
       return
     }
 
@@ -451,18 +457,62 @@ export default function ThemeChat() {
       
       // Convert to data URL
       const imageUrl = await imageFileToDataUrl(file)
+      
+      // Validate the data URL
+      const urlValidation = validateImageUrl(imageUrl)
+      if (!urlValidation.valid) {
+        setError(urlValidation.error || 'Invalid image URL')
+        setExtractingColors(false)
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+        return
+      }
+      
       setUploadedImage(imageUrl)
       
       // Extract colors
       const colors = await extractColorsFromImage(imageUrl, 5)
-      setExtractedColors(colors)
+      
+      // Validate extracted colors
+      const validColors: string[] = []
+      for (const color of colors) {
+        const colorValidation = validateColor(color)
+        if (colorValidation.valid) {
+          validColors.push(color)
+        } else {
+          console.warn(`[ThemeChat] Invalid color extracted: ${color}`, colorValidation.error)
+        }
+      }
+      
+      if (validColors.length === 0) {
+        setError('No valid colors could be extracted from the image')
+        setExtractingColors(false)
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+        return
+      }
+      
+      setExtractedColors(validColors)
       
       // Auto-generate theme from image
-      const colorDescription = colors.join(', ')
+      const colorDescription = validColors.join(', ')
       const imagePrompt = `Create a theme based on these colors extracted from an uploaded image: ${colorDescription}. Use these colors as the primary palette and create a cohesive, modern theme that works in both light and dark modes.`
       
+      // Validate the generated prompt
+      const promptValidation = validateThemePrompt(imagePrompt)
+      if (!promptValidation.valid) {
+        setError(promptValidation.error || 'Invalid prompt generated from image')
+        setExtractingColors(false)
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+        return
+      }
+      
       // Automatically run theme generation
-      await run(imagePrompt, imageUrl, colors)
+      await run(imagePrompt, imageUrl, validColors)
     } catch (error) {
       console.error('Failed to process image:', error)
       setError('Failed to extract colors from image')
@@ -484,6 +534,45 @@ export default function ThemeChat() {
 
   const run = async (userPrompt: string, imageUrl?: string, colors?: string[]) => {
     if (!userPrompt.trim() && !imageUrl) return
+
+    // Validate prompt if provided
+    if (userPrompt.trim()) {
+      const promptValidation = validateThemePrompt(userPrompt)
+      if (!promptValidation.valid) {
+        setError(promptValidation.error || 'Invalid prompt')
+        return
+      }
+    }
+
+    // Validate image URL if provided
+    if (imageUrl) {
+      const urlValidation = validateImageUrl(imageUrl)
+      if (!urlValidation.valid) {
+        setError(urlValidation.error || 'Invalid image URL')
+        return
+      }
+    }
+
+    // Validate colors if provided
+    if (colors && colors.length > 0) {
+      const validColors: string[] = []
+      for (const color of colors) {
+        const colorValidation = validateColor(color)
+        if (colorValidation.valid) {
+          validColors.push(color)
+        } else {
+          console.warn(`[ThemeChat] Invalid color provided: ${color}`, colorValidation.error)
+        }
+      }
+      
+      if (validColors.length === 0) {
+        setError('No valid colors provided')
+        return
+      }
+      
+      // Use validated colors
+      colors = validColors
+    }
 
     // Add user message to conversation
     const userMessage: Message = {
@@ -790,42 +879,43 @@ export default function ThemeChat() {
             <button
               disabled={loading}
               onClick={clearConversation}
-              className="px-2 sm:px-3 py-2 text-xs sm:text-sm rounded-md disabled:opacity-60 flex items-center gap-1 sm:gap-2 transition-colors touch-manipulation"
+              className="px-3 py-2 text-sm rounded-md disabled:opacity-60 flex items-center gap-2 transition-colors"
               style={{
                 color: 'var(--text-primary)',
-                backgroundColor: 'var(--surface-color)',
-                minHeight: '44px', // iOS touch target
+                backgroundColor: 'var(--border-color)',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--border-color)'
+                if (!loading) {
+                  e.currentTarget.style.opacity = '0.8'
+                }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--surface-color)'
+                e.currentTarget.style.opacity = '1'
               }}
             >
-              <span className="hidden sm:inline">Clear Chat</span>
-              <span className="sm:hidden">Clear</span>
+              <Trash2 className="w-4 h-4" />
+              Clear Chat
             </button>
           )}
           <button
             disabled={loading}
             onClick={resetTheme}
-            className="px-2 sm:px-3 py-2 text-xs sm:text-sm rounded-md disabled:opacity-60 flex items-center gap-1 sm:gap-2 transition-colors touch-manipulation"
+            className="px-3 py-2 text-sm rounded-md disabled:opacity-60 flex items-center gap-2 transition-colors"
             style={{
               color: 'var(--text-primary)',
-              backgroundColor: 'var(--surface-color)',
-              minHeight: '44px', // iOS touch target
+              backgroundColor: 'var(--border-color)',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--border-color)'
+              if (!loading) {
+                e.currentTarget.style.opacity = '0.8'
+              }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--surface-color)'
+              e.currentTarget.style.opacity = '1'
             }}
           >
-            <RotateCcw className="w-4 h-4 flex-shrink-0" />
-            <span className="hidden sm:inline">Reset Theme</span>
-            <span className="sm:hidden">Reset</span>
+            <RotateCcw className="w-4 h-4" />
+            Reset Theme
           </button>
         </div>
       </div>

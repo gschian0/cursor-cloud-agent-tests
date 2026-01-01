@@ -109,6 +109,7 @@ body {
   /* Transform based on mouse position - very subtle rotation, movement and zoom */
   transform: 
     translateX(calc(var(--positionX, 0) * 3px))
+    rotateY(calc(var(--positionX, 0) * 3deg))
     rotateZ(calc(var(--positionX, 0) * 2deg))
     scale(calc(1 + var(--positionY, 0) * 0.01));
   transition: transform 0.2s ease-out;
@@ -235,7 +236,9 @@ small { font-size: var(--text-size-sm); }
   min-height: 14px;
   max-height: 100%;
   overflow: hidden;
-  margin-bottom: 1px;
+  margin: 1px 2px;
+  width: calc(100% - 4px);
+  box-sizing: border-box;
 }
 
 
@@ -410,6 +413,8 @@ small { font-size: var(--text-size-sm); }
   max-height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 2px;
+  box-sizing: border-box;
 }
 
 /* Make calendar day cells scrollable */
@@ -419,6 +424,8 @@ small { font-size: var(--text-size-sm); }
   overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  padding: 2px;
+  box-sizing: border-box;
 }
 
 .rbc-month-view .rbc-date-cell::-webkit-scrollbar {
@@ -440,6 +447,44 @@ small { font-size: var(--text-size-sm); }
 
 .rbc-date-cell > a {
   color: var(--text-primary) !important;
+}
+
+/* Limit visible events to 2 in month view, then show "+x more" */
+.rbc-month-view .rbc-date-cell {
+  position: relative;
+}
+
+/* Set exact height for events container to fit exactly 2 events */
+/* Each event: 14px min-height + 1px margin-bottom = 15px */
+/* 2 events = 30px total */
+.rbc-month-view .rbc-date-cell .rbc-events-container {
+  height: 30px !important;
+  max-height: 30px !important;
+  overflow: hidden !important;
+  position: relative;
+}
+
+/* Don't hide events - let React Big Calendar handle overflow detection */
+/* The library will automatically show "+more" when events overflow the container */
+
+/* Prevent clicks on popup overlay from triggering calendar slot selection */
+.rbc-overlay,
+.rbc-popup {
+  pointer-events: auto !important;
+}
+
+.rbc-overlay *,
+.rbc-popup * {
+  pointer-events: auto !important;
+}
+
+/* Ensure popup overlay stops event propagation */
+.rbc-overlay-wrapper {
+  pointer-events: none !important;
+}
+
+.rbc-overlay-wrapper .rbc-overlay {
+  pointer-events: auto !important;
 }
 
 /* Week and Day views */
