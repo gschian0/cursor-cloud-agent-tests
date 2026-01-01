@@ -408,9 +408,12 @@ export default function ClockTimePicker({
 
           {/* AM/PM Selection */}
           {step === 'ampm' && (
-            <div className="mt-4 flex gap-3 justify-center">
+            <div className="mt-4 flex gap-3 justify-center" onClick={(e) => e.stopPropagation()}>
               <button
-                onClick={() => handleAmPmSelect(false)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleAmPmSelect(false)
+                }}
                 className="px-6 py-2 rounded-md transition-opacity font-semibold"
                 style={{
                   backgroundColor: selectedTime.getHours() < 12 ? 'var(--primary-color)' : 'var(--surface-color)',
@@ -428,7 +431,10 @@ export default function ClockTimePicker({
                 AM
               </button>
               <button
-                onClick={() => handleAmPmSelect(true)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleAmPmSelect(true)
+                }}
                 className="px-6 py-2 rounded-md transition-opacity font-semibold"
                 style={{
                   backgroundColor: selectedTime.getHours() >= 12 ? 'var(--primary-color)' : 'var(--surface-color)',
@@ -449,9 +455,12 @@ export default function ClockTimePicker({
           )}
 
           {/* Action buttons */}
-          <div className="mt-4 flex gap-3">
+          <div className="mt-4 flex gap-3" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={onClose}
+              onClick={(e) => {
+                e.stopPropagation()
+                onClose()
+              }}
               className="px-4 py-2 rounded-md transition-colors"
               style={{
                 color: 'var(--text-primary)',
@@ -462,7 +471,8 @@ export default function ClockTimePicker({
             </button>
             {step === 'ampm' && (
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation()
                   onTimeSelect(selectedTime)
                   onClose()
                 }}

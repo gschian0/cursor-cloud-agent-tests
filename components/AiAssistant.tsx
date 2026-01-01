@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState, useRef, useEffect } from "react"
-import { Send, Bot, User, Trash2 } from "lucide-react"
+import { Send, Bot, User, Trash2, Mic, MicOff } from "lucide-react"
+import { useSpeechRecognition } from '@/lib/useSpeechRecognition'
 
 type EventLike = {
   id: string
@@ -76,6 +77,50 @@ export default function AiAssistant({
   const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
+
+  // Track the prompt before voice input started
+  const promptBeforeVoiceRef = useRef('')
+  const wasListeningRef = useRef(false)
+
+  // Speech recognition for voice input
+  const { isListening, transcript, error: speechError, isSupported: speechSupported, toggleListening } = useSpeechRecognition({
+    onResult: (text) => {
+      // This is called when final results come in, but we handle everything in the useEffect
+      console.log('[AiAssistant] Speech result received:', text)
+    },
+    onError: (error) => {
+      console.error('[AiAssistant] Speech recognition error:', error)
+    },
+    continuous: true,
+    interimResults: true,
+  })
+
+  // When starting to listen, save the current prompt
+  useEffect(() => {
+    if (isListening && !wasListeningRef.current) {
+      setPrompt(current => {
+        promptBeforeVoiceRef.current = current
+        wasListeningRef.current = true
+        return current
+      })
+    }
+  }, [isListening])
+
+  // Update prompt with real-time transcript as you speak (like iPhone Notes)
+  useEffect(() => {
+    if (isListening && wasListeningRef.current) {
+      const baseText = promptBeforeVoiceRef.current
+      const fullText = baseText + (transcript ? (baseText ? ' ' : '') + transcript : '')
+      setPrompt(fullText)
+    } 
+    // When stopped listening, finalize
+    else if (!isListening && wasListeningRef.current) {
+      const finalText = promptBeforeVoiceRef.current + (transcript ? (promptBeforeVoiceRef.current ? ' ' : '') + transcript : '')
+      setPrompt(finalText.trim())
+      promptBeforeVoiceRef.current = ''
+      wasListeningRef.current = false
+    }
+  }, [transcript, isListening])
 
   // Save chat history to localStorage whenever it changes
   useEffect(() => {
@@ -505,28 +550,71 @@ export default function AiAssistant({
           {error}
         </div>
       )}
+      {speechError && (
+        <div className="text-sm rounded-md p-3 mb-4" style={{ color: '#dc2626', backgroundColor: 'rgba(254, 242, 242, 0.8)', border: '1px solid rgba(254, 226, 226, 0.8)' }}>
+          Voice Input Error: {speechError}
+        </div>
+      )}
 
       {/* Input Area */}
       <div className="space-y-2 border-t pt-4" style={{ borderColor: 'var(--border-color)' }}>
         <div className="flex gap-2">
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                run(prompt)
-              }
-            }}
-            placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
-            className="flex-1 min-h-[80px] max-h-[200px] rounded-md p-3 focus:outline-none focus:ring-2 resize-none"
-            style={{
-              color: 'var(--text-primary)',
-              backgroundColor: 'var(--background-color)',
-              border: `1px solid var(--border-color)`,
-            }}
-            disabled={loading}
-          />
+          <div className="flex-1 relative">
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  run(prompt)
+                }
+              }}
+              placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
+              className="w-full min-h-[80px] max-h-[200px] rounded-md p-3 pr-10 focus:outline-none focus:ring-2 resize-none"
+              style={{
+                color: 'var(--text-primary)',
+                backgroundColor: 'var(--background-color)',
+                border: `1px solid var(--border-color)`,
+              }}
+              disabled={loading}
+            />
+            {speechSupported && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  toggleListening()
+                }}
+                disabled={loading}
+                className={`absolute right-2 bottom-2 p-2 rounded-md transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                  isListening ? 'animate-pulse' : ''
+                }`}
+                style={{
+                  color: isListening ? '#ef4444' : 'var(--text-secondary)',
+                  backgroundColor: isListening ? 'rgba(239, 68, 68, 0.1)' : 'transparent',
+                  border: isListening ? '1px solid rgba(239, 68, 68, 0.3)' : 'none',
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.backgroundColor = isListening ? 'rgba(239, 68, 68, 0.15)' : 'var(--surface-color)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isListening) {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                  }
+                }}
+                title={isListening ? 'Stop recording (click again)' : 'Start voice input (click to record)'}
+              >
+                {isListening ? (
+                  <MicOff className="w-4 h-4" />
+                ) : (
+                  <Mic className="w-4 h-4" />
+                )}
+              </button>
+            )}
+          </div>
           <button
             disabled={loading || prompt.trim().length === 0}
             onClick={() => run(prompt)}

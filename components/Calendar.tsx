@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Calendar as BigCalendar, dateFnsLocalizer, View, Components } from 'react-big-calendar'
 import { format, parse, startOfWeek, getDay } from 'date-fns'
 import { enUS } from 'date-fns/locale'
@@ -48,6 +48,13 @@ export default function CalendarComponent({
   const [, forceUpdate] = useState({})
   const [eventImages, setEventImages] = useState<Record<string, string>>({})
   const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set())
+  const [hoveredDate, setHoveredDate] = useState<Date | null>(null)
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null)
+  const [hoveredEvent, setHoveredEvent] = useState<CalendarEvent | null>(null)
+  const [eventTooltipPosition, setEventTooltipPosition] = useState<{ x: number; y: number } | null>(null)
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
+  const eventTooltipRef = useRef<HTMLDivElement>(null)
 
   // Listen for theme updates and force re-render
   useEffect(() => {
@@ -172,10 +179,19 @@ export default function CalendarComponent({
   const handleSelectEvent = useCallback(
     (event: CalendarEvent) => {
       if (onSelectEvent) {
+        // If this is a split event (has - in the ID), find the original event
+        if (event.id.includes('-') && !isNaN(Number(event.id.split('-').pop()))) {
+          const originalId = event.id.split('-')[0]
+          const originalEvent = events.find(e => e.id === originalId)
+          if (originalEvent) {
+            onSelectEvent(originalEvent)
+            return
+          }
+        }
         onSelectEvent(event)
       }
     },
-    [onSelectEvent]
+    [onSelectEvent, events]
   )
 
   const eventStyleGetter = useCallback(
@@ -211,6 +227,24 @@ export default function CalendarComponent({
     [forceUpdate] // Re-compute when theme updates
   )
 
+  // Format time for event display
+  const formatEventTime = useCallback((date: Date) => {
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
+  }, [])
+
+  // Format time for tooltip display
+  const formatTime = useCallback((date: Date) => {
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
+  }, [])
+
   // Custom event component to show images inline
   const EventComponent = useCallback((props: any) => {
     const event = props.event as CalendarEvent
@@ -222,15 +256,33 @@ export default function CalendarComponent({
     // Filter out non-DOM props that react-big-calendar passes
     const { continuesPrior, continuesAfter, isAllDay, slotStart, slotEnd, ...domProps } = props
     
+    // Get time for display (only if not all-day)
+    const eventTime = !event.allDay ? formatEventTime(event.start) : null
+    
+    const handleEventMouseEnter = (e: React.MouseEvent) => {
+      const rect = e.currentTarget.getBoundingClientRect()
+      setHoveredEvent(event)
+      setEventTooltipPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top
+      })
+    }
+    
+    const handleEventMouseLeave = () => {
+      // Tooltip will close when mouse moves away (handled by global mouse tracking)
+    }
+    
     return (
       <div 
         {...domProps} 
+        onMouseEnter={handleEventMouseEnter}
+        onMouseLeave={handleEventMouseLeave}
         style={{ 
           ...domProps.style,
           display: 'flex', 
           alignItems: 'center', 
-          gap: '4px',
-          padding: '2px 4px',
+          gap: '2px',
+          padding: '1px 2px',
         }}
       >
         {imageUrl ? (
@@ -239,9 +291,9 @@ export default function CalendarComponent({
               src={imageUrl} 
               alt={event.title}
               style={{ 
-                width: '18px', 
-                height: '18px', 
-                borderRadius: '3px', 
+                width: '12px', 
+                height: '12px', 
+                borderRadius: '2px', 
                 objectFit: 'cover',
                 flexShrink: 0,
                 border: '1px solid rgba(255,255,255,0.3)',
@@ -251,6 +303,17 @@ export default function CalendarComponent({
                 e.currentTarget.style.display = 'none'
               }}
             />
+            {eventTime && (
+              <span style={{ 
+                color: '#000000', 
+                fontSize: '8px', 
+                fontWeight: '600',
+                flexShrink: 0,
+                marginRight: '2px',
+              }}>
+                {eventTime}
+              </span>
+            )}
             <span className="rbc-event-content" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {event.title}
             </span>
@@ -260,39 +323,334 @@ export default function CalendarComponent({
             <Loader2 
               className="animate-spin" 
               style={{ 
-                width: '14px', 
-                height: '14px', 
+                width: '10px', 
+                height: '10px', 
                 color: 'white',
                 flexShrink: 0,
               }} 
             />
+            {eventTime && (
+              <span style={{ 
+                color: '#000000', 
+                fontSize: '8px', 
+                fontWeight: '600',
+                flexShrink: 0,
+                marginRight: '2px',
+              }}>
+                {eventTime}
+              </span>
+            )}
             <span className="rbc-event-content" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {event.title}
             </span>
           </>
         ) : (
-          <span className="rbc-event-content" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {event.title}
-          </span>
+          <>
+            {eventTime && (
+              <span style={{ 
+                color: '#000000', 
+                fontSize: '8px', 
+                fontWeight: '600',
+                flexShrink: 0,
+                marginRight: '2px',
+              }}>
+                {eventTime}
+              </span>
+            )}
+            <span className="rbc-event-content" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {event.title}
+            </span>
+          </>
         )}
       </div>
     )
-  }, [eventImages, loadingImages])
+  }, [eventImages, loadingImages, formatEventTime])
 
   const components: Components<CalendarEvent> = useMemo(() => ({
     event: EventComponent,
   }), [EventComponent])
 
-  // Merge event images into events
+  // Split multi-day events into separate events for each day
+  const splitMultiDayEvents = useCallback((events: CalendarEvent[]): CalendarEvent[] => {
+    const splitEvents: CalendarEvent[] = []
+    
+    events.forEach(event => {
+      const start = new Date(event.start)
+      const end = new Date(event.end)
+      const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+      const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+      
+      // If event spans multiple days, create separate events for each day
+      if (startDay.getTime() !== endDay.getTime()) {
+        let currentDay = new Date(startDay)
+        while (currentDay <= endDay) {
+          const dayStart = new Date(currentDay)
+          dayStart.setHours(start.getHours(), start.getMinutes(), start.getSeconds())
+          
+          const dayEnd = new Date(currentDay)
+          if (currentDay.getTime() === endDay.getTime()) {
+            // Last day - use original end time
+            dayEnd.setHours(end.getHours(), end.getMinutes(), end.getSeconds())
+          } else {
+            // Middle days - full day
+            dayEnd.setHours(23, 59, 59)
+          }
+          
+          splitEvents.push({
+            ...event,
+            id: `${event.id}-${currentDay.getTime()}`,
+            start: dayStart,
+            end: dayEnd,
+          })
+          
+          // Move to next day
+          currentDay.setDate(currentDay.getDate() + 1)
+        }
+      } else {
+        // Single day event - keep as is
+        splitEvents.push(event)
+      }
+    })
+    
+    return splitEvents
+  }, [])
+
+  // Merge event images and split multi-day events
   const eventsWithImages = useMemo(() => {
-    return events.map(event => ({
+    const eventsWithImages = events.map(event => ({
       ...event,
       imageUrl: event.imageUrl || eventImages[event.id] || undefined,
     }))
-  }, [events, eventImages])
+    return splitMultiDayEvents(eventsWithImages)
+  }, [events, eventImages, splitMultiDayEvents])
+
+  // Get events for a specific date
+  const getEventsForDate = useCallback((date: Date): CalendarEvent[] => {
+    const dateStr = date.toDateString()
+    return eventsWithImages.filter(event => {
+      const eventDate = new Date(event.start).toDateString()
+      return eventDate === dateStr
+    }).sort((a, b) => {
+      // Sort by start time
+      return a.start.getTime() - b.start.getTime()
+    })
+  }, [eventsWithImages])
+
+  // Add hover listeners to date cells
+  useEffect(() => {
+    if (view !== 'month') return
+
+    const handleMouseEnter = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      
+      // Don't show day tooltip if hovering over an event (event has its own tooltip)
+      if (target.closest('.rbc-event')) return
+      
+      const dateCell = target.closest('.rbc-date-cell')
+      if (!dateCell) return
+
+      // Get the date from the cell - find the anchor tag with the day number
+      const dateLink = dateCell.querySelector('a')
+      
+      // Check if this is an off-range date (previous/next month)
+      const isOffRange = dateCell.classList.contains('rbc-off-range-bg') || 
+                         dateCell.classList.contains('rbc-off-range') ||
+                         dateCell.closest('.rbc-off-range-bg') !== null
+      
+      let cellDate: Date | null = null
+      
+      // Get all cells and cell index first
+      const allCells = Array.from(document.querySelectorAll('.rbc-date-cell'))
+      const cellIndex = allCells.indexOf(dateCell)
+      if (cellIndex === -1) return
+      
+      const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1)
+      const dayOfWeek = firstDayOfMonth.getDay()
+      const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+      const calculatedDay = cellIndex - dayOfWeek + 1
+      
+      if (dateLink) {
+        // Primary method: Use the day number from the link text (what user sees)
+        const dayNumberText = dateLink.textContent?.trim() || dateLink.innerText?.trim() || ''
+        // Use regex to match the first number in the text
+        const dayNumberMatch = dayNumberText.match(/\d+/)
+        let dayNumber: number | null = null
+        
+        if (dayNumberMatch) {
+          dayNumber = parseInt(dayNumberMatch[0], 10)
+        }
+        
+        // Fallback: Try getting from href if text parsing failed
+        if (!dayNumber || isNaN(dayNumber) || dayNumber < 1 || dayNumber > 31) {
+          const href = dateLink.getAttribute('href') || ''
+          const hrefMatch = href.match(/\d+/)
+          if (hrefMatch) {
+            const hrefDay = parseInt(hrefMatch[0], 10)
+            if (!isNaN(hrefDay) && hrefDay >= 1 && hrefDay <= 31) {
+              dayNumber = hrefDay
+            }
+          }
+        }
+        
+        if (!dayNumber || isNaN(dayNumber) || dayNumber < 1 || dayNumber > 31) return
+        
+        // Determine month based on off-range detection and cell position
+        // Use the day number from link text directly - it's what the user sees
+        if (isOffRange) {
+          // For off-range dates, determine month from cell position
+          // Check if this cell is before the first day of the month
+          if (calculatedDay < 1) {
+            // Previous month
+            cellDate = new Date(date.getFullYear(), date.getMonth() - 1, dayNumber)
+          } else {
+            // Next month (calculatedDay > lastDayOfMonth)
+            cellDate = new Date(date.getFullYear(), date.getMonth() + 1, dayNumber)
+          }
+        } else {
+          // Current month - use the day number directly from the link
+          // Don't use calculatedDay at all - just trust the day number from the link
+          cellDate = new Date(date.getFullYear(), date.getMonth(), dayNumber)
+        }
+      } else {
+        // Fallback: Calculate from cell position when no link (empty space)
+        const allCells = Array.from(document.querySelectorAll('.rbc-date-cell'))
+        const cellIndex = allCells.indexOf(dateCell)
+        if (cellIndex === -1) return
+        
+        const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1)
+        const dayOfWeek = firstDayOfMonth.getDay()
+        const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+        const calculatedDay = cellIndex - dayOfWeek + 1
+        
+        if (calculatedDay < 1) {
+          // Previous month
+          const prevMonth = new Date(date.getFullYear(), date.getMonth() - 1, 0)
+          const prevMonthLastDay = prevMonth.getDate()
+          cellDate = new Date(date.getFullYear(), date.getMonth() - 1, prevMonthLastDay + calculatedDay)
+        } else if (calculatedDay > lastDayOfMonth) {
+          // Next month
+          cellDate = new Date(date.getFullYear(), date.getMonth() + 1, calculatedDay - lastDayOfMonth)
+        } else {
+          // Current month
+          cellDate = new Date(date.getFullYear(), date.getMonth(), calculatedDay)
+        }
+      }
+      
+      if (!cellDate) return
+      
+      const dayEvents = getEventsForDate(cellDate)
+      
+      if (dayEvents.length > 0) {
+        const rect = dateCell.getBoundingClientRect()
+        setHoveredDate(cellDate)
+        setTooltipPosition({
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height
+        })
+      }
+    }
+
+    const handleMouseLeave = () => {
+      // Tooltip will close when mouse moves away (handled by global mouse tracking)
+    }
+
+    // Wait for calendar to render, then add listeners
+    const timeout = setTimeout(() => {
+      const dateCells = document.querySelectorAll('.rbc-date-cell')
+      dateCells.forEach(cell => {
+        cell.addEventListener('mouseenter', handleMouseEnter)
+        cell.addEventListener('mouseleave', handleMouseLeave)
+      })
+    }, 100)
+
+    return () => {
+      clearTimeout(timeout)
+      const dateCells = document.querySelectorAll('.rbc-date-cell')
+      dateCells.forEach(cell => {
+        cell.removeEventListener('mouseenter', handleMouseEnter)
+        cell.removeEventListener('mouseleave', handleMouseLeave)
+      })
+    }
+  }, [view, date, getEventsForDate])
+
+  const hoveredDayEvents = hoveredDate ? getEventsForDate(hoveredDate) : []
+
+  // Track mouse position globally to detect when it leaves tooltips
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY })
+      
+      // Check if mouse is over day tooltip
+      if (tooltipRef.current) {
+        const rect = tooltipRef.current.getBoundingClientRect()
+        const isOverTooltip = 
+          e.clientX >= rect.left && 
+          e.clientX <= rect.right && 
+          e.clientY >= rect.top && 
+          e.clientY <= rect.bottom
+        
+        if (!isOverTooltip) {
+          // Check if mouse is over the date cell that triggered it
+          const dateCells = document.querySelectorAll('.rbc-date-cell')
+          let isOverDateCell = false
+          dateCells.forEach(cell => {
+            const cellRect = cell.getBoundingClientRect()
+            if (
+              e.clientX >= cellRect.left && 
+              e.clientX <= cellRect.right && 
+              e.clientY >= cellRect.top && 
+              e.clientY <= cellRect.bottom
+            ) {
+              isOverDateCell = true
+            }
+          })
+          
+          if (!isOverDateCell) {
+            setHoveredDate(null)
+            setTooltipPosition(null)
+          }
+        }
+      }
+      
+      // Check if mouse is over event tooltip
+      if (eventTooltipRef.current) {
+        const rect = eventTooltipRef.current.getBoundingClientRect()
+        const isOverTooltip = 
+          e.clientX >= rect.left && 
+          e.clientX <= rect.right && 
+          e.clientY >= rect.top && 
+          e.clientY <= rect.bottom
+        
+        if (!isOverTooltip) {
+          // Check if mouse is over any event
+          const events = document.querySelectorAll('.rbc-event')
+          let isOverEvent = false
+          events.forEach(eventEl => {
+            const eventRect = eventEl.getBoundingClientRect()
+            if (
+              e.clientX >= eventRect.left && 
+              e.clientX <= eventRect.right && 
+              e.clientY >= eventRect.top && 
+              e.clientY <= eventRect.bottom
+            ) {
+              isOverEvent = true
+            }
+          })
+          
+          if (!isOverEvent) {
+            setHoveredEvent(null)
+            setEventTooltipPosition(null)
+          }
+        }
+      }
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
+  }, [])
 
   return (
-    <div className="h-[calc(100vh-200px)] p-4">
+    <div className="h-[calc(100vh-300px)] min-h-[400px] p-4 relative">
       <BigCalendar
         localizer={localizer}
         events={eventsWithImages}
@@ -309,6 +667,99 @@ export default function CalendarComponent({
         components={components}
         popup
       />
+      
+      {/* Hover tooltip showing events in time grid */}
+      {hoveredDate && tooltipPosition && hoveredDayEvents.length > 0 && (
+        <div
+          ref={tooltipRef}
+          className="calendar-day-tooltip fixed z-50 bg-white rounded-lg shadow-2xl border p-4 max-h-96 overflow-y-auto"
+          style={{
+            left: `${tooltipPosition.x}px`,
+            top: `${tooltipPosition.y + 10}px`,
+            transform: 'translateX(-50%)',
+            minWidth: '280px',
+            maxWidth: '400px',
+            backgroundColor: 'var(--background-color)',
+            borderColor: 'var(--border-color)',
+            color: 'var(--text-primary)',
+          }}
+        >
+          <div className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+            {hoveredDate.toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
+          </div>
+          <div className="space-y-2">
+            {hoveredDayEvents.map((event) => (
+              <div
+                key={event.id}
+                className="flex items-start gap-3 py-2 border-b last:border-b-0"
+                style={{ borderColor: 'var(--border-color)' }}
+              >
+                <div className="text-xs font-semibold flex-shrink-0" style={{ color: 'var(--text-secondary)', minWidth: '70px' }}>
+                  {event.allDay ? 'All Day' : formatTime(event.start)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                    {event.title}
+                  </div>
+                  {event.location && (
+                    <div className="text-xs mt-1 truncate" style={{ color: 'var(--text-secondary)' }}>
+                      📍 {event.location}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Event hover tooltip */}
+      {hoveredEvent && eventTooltipPosition && (
+        <div
+          ref={eventTooltipRef}
+          className="calendar-event-tooltip fixed z-50 bg-white rounded-lg shadow-2xl border p-4"
+          style={{
+            left: `${eventTooltipPosition.x}px`,
+            top: `${eventTooltipPosition.y - 10}px`,
+            transform: 'translateX(-50%) translateY(-100%)',
+            minWidth: '250px',
+            maxWidth: '350px',
+            backgroundColor: 'var(--background-color)',
+            borderColor: 'var(--border-color)',
+            color: 'var(--text-primary)',
+          }}
+        >
+          <div className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+            {hoveredEvent.title}
+          </div>
+          <div className="space-y-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">Time:</span>
+              <span>
+                {hoveredEvent.allDay 
+                  ? 'All Day' 
+                  : `${formatTime(hoveredEvent.start)} - ${formatTime(hoveredEvent.end)}`}
+              </span>
+            </div>
+            {hoveredEvent.location && (
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">Location:</span>
+                <span>{hoveredEvent.location}</span>
+              </div>
+            )}
+            {hoveredEvent.description && (
+              <div className="mt-2 pt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                <span className="font-semibold block mb-1">Description:</span>
+                <span>{hoveredEvent.description}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

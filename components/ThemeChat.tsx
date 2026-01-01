@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, Palette, RotateCcw, Save, Trash2, Download, Image as ImageIcon, X } from 'lucide-react'
+import { Send, Bot, User, Palette, RotateCcw, Save, Trash2, Download, Image as ImageIcon, X, Mic, MicOff } from 'lucide-react'
 import { extractColorsFromImage, imageFileToDataUrl } from '@/lib/color-extraction'
+import { sanitizeCSSForApplication } from '@/lib/css-sanitizer'
+import { useSpeechRecognition } from '@/lib/useSpeechRecognition'
 
 type Message = {
   role: 'user' | 'assistant'
@@ -50,6 +52,52 @@ export default function ThemeChat() {
     }
     return 'light'
   })
+
+  // Track the prompt before voice input started
+  const promptBeforeVoiceRef = useRef('')
+  const wasListeningRef = useRef(false)
+
+  // Speech recognition for voice input
+  const { isListening, transcript, error: speechError, isSupported: speechSupported, toggleListening } = useSpeechRecognition({
+    onResult: (text) => {
+      // This is called when final results come in, but we handle everything in the useEffect
+      console.log('[ThemeChat] Speech result received:', text)
+    },
+    onError: (error) => {
+      console.error('[ThemeChat] Speech recognition error:', error)
+    },
+    continuous: true,
+    interimResults: true,
+  })
+
+  // Update prompt with real-time transcription (like iPhone Notes)
+  useEffect(() => {
+    // When starting to listen, save the current prompt
+    if (isListening && !wasListeningRef.current) {
+      // Get current prompt value at the moment we start listening
+      setPrompt(current => {
+        promptBeforeVoiceRef.current = current
+        wasListeningRef.current = true
+        return current
+      })
+    }
+  }, [isListening])
+
+  // Update prompt with real-time transcript as you speak
+  useEffect(() => {
+    if (isListening && wasListeningRef.current) {
+      const baseText = promptBeforeVoiceRef.current
+      const fullText = baseText + (transcript ? (baseText ? ' ' : '') + transcript : '')
+      setPrompt(fullText)
+    } 
+    // When stopped listening, finalize
+    else if (!isListening && wasListeningRef.current) {
+      const finalText = promptBeforeVoiceRef.current + (transcript ? (promptBeforeVoiceRef.current ? ' ' : '') + transcript : '')
+      setPrompt(finalText.trim())
+      promptBeforeVoiceRef.current = ''
+      wasListeningRef.current = false
+    }
+  }, [transcript, isListening])
 
   // Track current theme mode for timestamp styling
   useEffect(() => {
@@ -149,13 +197,19 @@ export default function ThemeChat() {
       }
       
       if (cssVars) {
-        const varMatches = cssVars.matchAll(/--([\w-]+):\s*([^;]+);/g)
+        // Sanitize CSS before application to prevent injection attacks
+        const sanitizedVars = sanitizeCSSForApplication(cssVars)
         
-        // Apply each CSS variable to the document root globally
-        for (const match of varMatches) {
-          const varName = `--${match[1]}`
-          const varValue = match[2].trim()
-          root.style.setProperty(varName, varValue)
+        // Apply each sanitized CSS variable to the document root globally
+        for (const { property, value } of sanitizedVars) {
+          root.style.setProperty(property, value)
+        }
+        
+        // Log if any CSS was blocked (for debugging)
+        const originalMatches = cssVars.matchAll(/--([\w-]+):\s*([^;]+);/g)
+        const originalCount = Array.from(originalMatches).length
+        if (sanitizedVars.length < originalCount) {
+          console.warn(`[ThemeChat] ${originalCount - sanitizedVars.length} CSS variable(s) were blocked by sanitizer`)
         }
 
         // Also ensure all text styling variables are set if not present
@@ -886,6 +940,11 @@ export default function ThemeChat() {
           {error}
         </div>
       )}
+      {speechError && (
+        <div className="text-sm rounded-md p-3 mb-4" style={{ color: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.2)' }}>
+          Voice Input Error: {speechError}
+        </div>
+      )}
 
       {/* Uploaded Image Preview */}
       {uploadedImage && (
@@ -980,25 +1039,63 @@ export default function ThemeChat() {
             <ImageIcon className="w-4 h-4 flex-shrink-0" />
             <span className="text-sm">{extractingColors ? 'Extracting...' : 'Upload Image'}</span>
           </button>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                run(prompt, uploadedImage || undefined, extractedColors.length > 0 ? extractedColors : undefined)
-              }
-            }}
-            placeholder={uploadedImage ? "Optionally add a description to refine the theme..." : "Describe your theme... (e.g., 'dark mode', 'ocean blue', 'warm sunset') or upload an image"}
-            className="flex-1 min-h-[80px] sm:min-h-[80px] max-h-[120px] sm:max-h-[200px] rounded-md p-3 focus:outline-none resize-none text-sm sm:text-base"
-            style={{
-              color: 'var(--text-primary)',
-              backgroundColor: 'var(--background-color)',
-              border: `1px solid var(--border-color)`,
-              fontSize: '16px', // Prevents zoom on iOS
-            }}
-            disabled={loading || extractingColors}
-          />
+          <div className="flex-1 relative">
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  run(prompt, uploadedImage || undefined, extractedColors.length > 0 ? extractedColors : undefined)
+                }
+              }}
+              placeholder={uploadedImage ? "Optionally add a description to refine the theme..." : "Describe your theme... (e.g., 'dark mode', 'ocean blue', 'warm sunset') or upload an image"}
+              className="w-full min-h-[80px] sm:min-h-[80px] max-h-[120px] sm:max-h-[200px] rounded-md p-3 pr-10 focus:outline-none resize-none text-sm sm:text-base"
+              style={{
+                color: 'var(--text-primary)',
+                backgroundColor: 'var(--background-color)',
+                border: `1px solid var(--border-color)`,
+                fontSize: '16px', // Prevents zoom on iOS
+              }}
+              disabled={loading || extractingColors}
+            />
+            {speechSupported && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  toggleListening()
+                }}
+                disabled={loading || extractingColors}
+                className={`absolute right-2 bottom-2 p-2 rounded-md transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                  isListening ? 'animate-pulse' : ''
+                }`}
+                style={{
+                  color: isListening ? '#ef4444' : 'var(--text-secondary)',
+                  backgroundColor: isListening ? 'rgba(239, 68, 68, 0.1)' : 'transparent',
+                  border: isListening ? '1px solid rgba(239, 68, 68, 0.3)' : 'none',
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && !extractingColors) {
+                    e.currentTarget.style.backgroundColor = isListening ? 'rgba(239, 68, 68, 0.15)' : 'var(--surface-color)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isListening) {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                  }
+                }}
+                title={isListening ? 'Stop recording (click again)' : 'Start voice input (click to record)'}
+              >
+                {isListening ? (
+                  <MicOff className="w-4 h-4" />
+                ) : (
+                  <Mic className="w-4 h-4" />
+                )}
+              </button>
+            )}
+          </div>
           <button
             disabled={loading || extractingColors || (prompt.trim().length === 0 && !uploadedImage)}
             onClick={() => run(prompt, uploadedImage || undefined, extractedColors.length > 0 ? extractedColors : undefined)}

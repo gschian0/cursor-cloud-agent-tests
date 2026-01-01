@@ -115,12 +115,12 @@ export async function POST(request: Request) {
       Describe the image in detail including colors, style, composition, and visual elements.
       The description should be suitable for generating an image with an AI image generator.`
     } else if (type === "logo") {
-      descriptionPrompt = `Create a detailed visual description for a logo for an AI Calendar application.
+      descriptionPrompt = `Create a detailed visual description for a logo for a Smart Calendar application.
       Theme colors: ${theme || 'blue and purple'}
       Describe the logo design in detail including colors, style, symbols, and composition.
       The description should be suitable for generating a logo with an AI image generator.`
     } else if (type === "header") {
-      descriptionPrompt = `Create a detailed visual description for a header banner for an AI Calendar application.
+      descriptionPrompt = `Create a detailed visual description for a header banner for a Smart Calendar application.
       Theme colors: ${theme || 'blue and purple gradient'}
       Describe the header design in detail including colors, patterns, gradients, and visual elements.
       The description should be suitable for generating a header with an AI image generator.`

@@ -526,11 +526,52 @@ export default function DashboardClient() {
                 </div>
                 <button
                   onClick={handleSignOut}
-                  className="modern-header-button flex items-center gap-2"
+                  className="embossed-sign-out-button flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition-all duration-200 relative overflow-hidden"
                   style={{
-                    color: 'var(--text-primary)',
-                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                    borderColor: 'rgba(239, 68, 68, 0.2)',
+                    color: '#ffffff',
+                    background: `linear-gradient(135deg, var(--primary-color), var(--secondary-color))`,
+                    border: `1px solid var(--border-color)`,
+                    boxShadow: `
+                      0 4px 15px rgba(0, 0, 0, 0.1),
+                      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                      inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+                      0 2px 4px rgba(0, 0, 0, 0.1)
+                    `,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)'
+                    e.currentTarget.style.boxShadow = `
+                      0 6px 20px rgba(0, 0, 0, 0.15),
+                      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+                      inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+                      0 4px 8px rgba(0, 0, 0, 0.1)
+                    `
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.boxShadow = `
+                      0 4px 15px rgba(0, 0, 0, 0.1),
+                      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                      inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+                      0 2px 4px rgba(0, 0, 0, 0.1)
+                    `
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.boxShadow = `
+                      inset 0 2px 4px rgba(0, 0, 0, 0.3),
+                      inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+                      0 1px 2px rgba(0, 0, 0, 0.1)
+                    `
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)'
+                    e.currentTarget.style.boxShadow = `
+                      0 6px 20px rgba(0, 0, 0, 0.15),
+                      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+                      inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+                      0 4px 8px rgba(0, 0, 0, 0.1)
+                    `
                   }}
                 >
                   <LogOut className="w-4 h-4" />
@@ -612,18 +653,18 @@ export default function DashboardClient() {
                 <CalendarIcon className="w-8 h-8" style={{ color: 'var(--primary-color)' }} />
                 Your Calendar
               </h2>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Manage your events and schedule. Click on any day to create an event or click on an event to view details.
-              </p>
-            </div>
-            <div className="mb-6 flex justify-end">
-              <button
-                onClick={() => setShowEventModal(true)}
-                className="modern-button flex items-center gap-2 px-4 py-2 text-white"
-              >
-                <Plus className="w-4 h-4" />
-                New Event
-              </button>
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-sm flex-1" style={{ color: 'var(--text-secondary)' }}>
+                  Manage your events and schedule. Click on any day to create an event or click on an event to view details.
+                </p>
+                <button
+                  onClick={() => setShowEventModal(true)}
+                  className="modern-button flex items-center gap-2 px-4 py-2 text-white whitespace-nowrap"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Event
+                </button>
+              </div>
             </div>
             <CalendarComponent
               events={calendarEvents}

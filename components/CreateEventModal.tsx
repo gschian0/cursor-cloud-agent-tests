@@ -22,6 +22,7 @@ export interface EventFormData {
   color: string
   allDay: boolean
   generateImage?: boolean
+  imageUrl?: string
 }
 
 export default function CreateEventModal({
@@ -63,6 +64,7 @@ export default function CreateEventModal({
     color: '#3b82f6', // Will be updated on mount
     allDay: false,
     generateImage: false,
+    imageUrl: '',
   })
   
   // Update default color when theme changes
@@ -107,6 +109,7 @@ export default function CreateEventModal({
           color: initialData.color || getDefaultEventColor(),
           allDay: initialData.allDay || false,
           generateImage: false,
+          imageUrl: initialData.imageUrl || '',
         })
       } else if (initialStart && initialEnd) {
         // New event with selected slot - use initialStart/initialEnd
@@ -119,6 +122,7 @@ export default function CreateEventModal({
           color: getDefaultEventColor(),
           allDay: false,
           generateImage: false,
+          imageUrl: '',
         })
       } else {
         // New event without selected slot - reset to empty
@@ -131,6 +135,7 @@ export default function CreateEventModal({
           color: getDefaultEventColor(),
           allDay: false,
           generateImage: false,
+          imageUrl: '',
         })
       }
     }
@@ -154,10 +159,10 @@ export default function CreateEventModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="modern-modal w-full max-w-2xl mx-4">
-        <div className="flex justify-between items-center p-6 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-          <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{isEdit ? 'Edit Event' : 'Create Event'}</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="modern-modal w-full max-w-2xl mx-auto my-auto max-h-[calc(100vh-2rem)] overflow-y-auto scrollbar-hide">
+        <div className="flex justify-between items-center p-4 sm:p-6 border-b flex-shrink-0" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+          <h2 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{isEdit ? 'Edit Event' : 'Create Event'}</h2>
           <button
             onClick={onClose}
             className="transition-colors"
@@ -173,7 +178,7 @@ export default function CreateEventModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3 sm:space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
               Event Title *
@@ -196,7 +201,7 @@ export default function CreateEventModal({
             />
           </div>
 
-          <div>
+          <div className="flex-shrink-0">
             <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
               Description
             </label>
@@ -211,7 +216,7 @@ export default function CreateEventModal({
                 backgroundColor: 'var(--background-color)',
                 border: `1px solid var(--border-color)`,
               }}
-              rows={3}
+              rows={2}
               placeholder="Event details..."
             />
           </div>
@@ -312,28 +317,67 @@ export default function CreateEventModal({
             </div>
           </div>
 
-          {!isEdit && (
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="generateImage"
-                checked={formData.generateImage || false}
-                onChange={(e) =>
-                  setFormData({ ...formData, generateImage: e.target.checked })
-                }
-                className="w-4 h-4 rounded focus:ring-2"
-                style={{
-                  accentColor: 'var(--primary-color)',
-                  borderColor: 'var(--border-color)',
-                }}
-              />
-              <label htmlFor="generateImage" className="ml-2 text-sm" style={{ color: 'var(--text-primary)' }}>
-                Generate AI Image for Event
-              </label>
-            </div>
-          )}
+          <div className="flex-shrink-0">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+              Event Image URL
+            </label>
+            <input
+              type="url"
+              value={formData.imageUrl || ''}
+              onChange={(e) =>
+                setFormData({ ...formData, imageUrl: e.target.value })
+              }
+              className="w-full px-3 py-2 rounded-md focus:outline-none focus:ring-2"
+              style={{
+                color: 'var(--text-primary)',
+                backgroundColor: 'var(--background-color)',
+                border: `1px solid var(--border-color)`,
+              }}
+              placeholder="Leave empty to auto-generate from event info"
+            />
+            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+              {isEdit 
+                ? 'Enter an image URL or leave empty to generate a new AI image based on the event details.'
+                : 'If left empty, an image will be automatically generated based on the event information.'}
+            </p>
+            {formData.imageUrl && (
+              <div className="mt-2">
+                <img 
+                  src={formData.imageUrl} 
+                  alt="Event preview" 
+                  className="w-full max-w-xs rounded-md object-contain"
+                  style={{ 
+                    border: `1px solid var(--border-color)`,
+                    maxHeight: '150px'
+                  }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                  }}
+                />
+              </div>
+            )}
+          </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t" style={{ borderColor: 'var(--border-color)' }}>
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="generateImage"
+              checked={formData.generateImage || false}
+              onChange={(e) =>
+                setFormData({ ...formData, generateImage: e.target.checked })
+              }
+              className="w-4 h-4 rounded focus:ring-2"
+              style={{
+                accentColor: 'var(--primary-color)',
+                borderColor: 'var(--border-color)',
+              }}
+            />
+            <label htmlFor="generateImage" className="ml-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+              {isEdit ? 'Generate New AI Image (if no image URL provided)' : 'Generate AI Image for Event'}
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 sm:pt-4 border-t flex-shrink-0" style={{ borderColor: 'var(--border-color)' }}>
             <button
               type="button"
               onClick={onClose}

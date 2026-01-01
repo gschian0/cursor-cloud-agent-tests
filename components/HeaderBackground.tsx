@@ -41,7 +41,7 @@ export default function HeaderBackground({ children }: { children: React.ReactNo
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: 'AI Calendar header banner',
+          prompt: 'Smart Calendar header banner',
           type: 'header',
           theme: `${primaryColor} and ${secondaryColor} gradient`,
         }),

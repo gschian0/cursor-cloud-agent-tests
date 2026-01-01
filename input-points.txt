@@ -1,0 +1,105 @@
+components/SaveThemeButton.tsx:            <input
+components/HeaderLogo.tsx:          prompt: 'AI Calendar logo',
+components/HeaderBackground.tsx:          prompt: 'AI Calendar header banner',
+components/CreateEventModal.tsx:  // Helper to format date for datetime-local input
+components/CreateEventModal.tsx:        // Convert ISO dates to local datetime format for datetime-local inputs
+components/CreateEventModal.tsx:            <input
+components/CreateEventModal.tsx:            <textarea
+components/CreateEventModal.tsx:              <input
+components/CreateEventModal.tsx:                className="modern-input w-full px-3 py-2 focus:outline-none"
+components/CreateEventModal.tsx:              <input
+components/CreateEventModal.tsx:                className="modern-input w-full px-3 py-2 focus:outline-none"
+components/CreateEventModal.tsx:            <input
+components/CreateEventModal.tsx:              <input
+components/CreateEventModal.tsx:              <input
+components/CreateEventModal.tsx:              <input
+components/CreateContactModal.tsx:              <input
+components/CreateContactModal.tsx:                className="modern-input w-full px-3 py-2 focus:outline-none"
+components/CreateContactModal.tsx:              <input
+components/CreateContactModal.tsx:                className="modern-input w-full px-3 py-2 focus:outline-none"
+components/CreateContactModal.tsx:            <input
+components/CreateContactModal.tsx:                className="modern-input w-full px-3 py-2 focus:outline-none"
+components/CreateContactModal.tsx:            <input
+components/CreateContactModal.tsx:                className="modern-input w-full px-3 py-2 focus:outline-none"
+components/CreateContactModal.tsx:              <input
+components/CreateContactModal.tsx:                className="modern-input w-full px-3 py-2 focus:outline-none"
+components/CreateContactModal.tsx:              <input
+components/CreateContactModal.tsx:                className="modern-input w-full px-3 py-2 focus:outline-none"
+components/CreateContactModal.tsx:            <textarea
+components/CreateContactModal.tsx:                className="modern-input w-full px-3 py-2 focus:outline-none"
+components/CreateContactModal.tsx:            <input
+components/CreateContactModal.tsx:              className="modern-input w-full px-3 py-2 focus:outline-none"
+components/CreateContactModal.tsx:              <input
+components/ThemeChat.tsx:  const [prompt, setPrompt] = useState("")
+components/ThemeChat.tsx:        prompt: userPrompt || `Create a theme based on colors extracted from an uploaded image: ${colors?.join(', ')}`,
+components/ThemeChat.tsx:      // Send conversation history along with the new prompt
+components/ThemeChat.tsx:  const generateThemeName = (prompt: string): string => {
+components/ThemeChat.tsx:    // Generate a theme name from the prompt
+components/ThemeChat.tsx:    const words = prompt.toLowerCase().split(/\s+/).slice(0, 3)
+components/ThemeChat.tsx:        <input
+components/ThemeChat.tsx:          <textarea
+components/ThemeChat.tsx:            value={prompt}
+components/ThemeChat.tsx:                run(prompt, uploadedImage || undefined, extractedColors.length > 0 ? extractedColors : undefined)
+components/ThemeChat.tsx:            disabled={loading || extractingColors || (prompt.trim().length === 0 && !uploadedImage)}
+components/ThemeChat.tsx:            onClick={() => run(prompt, uploadedImage || undefined, extractedColors.length > 0 ? extractedColors : undefined)}
+components/ThemeChat.tsx:              if (!loading && !extractingColors && (prompt.trim().length > 0 || uploadedImage)) {
+components/ImageGenerator.tsx:  const [prompt, setPrompt] = useState("")
+components/ImageGenerator.tsx:  const [generatedImages, setGeneratedImages] = useState<Array<{ id: string; prompt: string; imageUrl: string; timestamp: Date }>>([])
+components/ImageGenerator.tsx:  const [selectedImage, setSelectedImage] = useState<{ imageUrl: string; prompt: string } | null>(null)
+components/ImageGenerator.tsx:    if (!prompt.trim()) return
+components/ImageGenerator.tsx:        body: JSON.stringify({ prompt: prompt.trim() }),
+components/ImageGenerator.tsx:        const imagePrompt = prompt.trim()
+components/ImageGenerator.tsx:          prompt: imagePrompt,
+components/ImageGenerator.tsx:  const handleDownload = (imageUrl: string, prompt: string) => {
+components/ImageGenerator.tsx:    link.download = `image-${prompt.substring(0, 20).replace(/\s+/g, '-')}-${Date.now()}.png`
+components/ImageGenerator.tsx:          Generate images using Gemini 3 Pro Preview. Enter a prompt and watch the magic happen!
+components/ImageGenerator.tsx:          <input
+components/ImageGenerator.tsx:            value={prompt}
+components/ImageGenerator.tsx:            className="modern-input flex-1 px-4 py-3 focus:outline-none"
+components/ImageGenerator.tsx:            disabled={loading || !prompt.trim()}
+components/ImageGenerator.tsx:            onClick={() => setSelectedImage({ imageUrl: currentImage, prompt: currentImagePrompt || 'Latest generated image' })}
+components/ImageGenerator.tsx:            <p className="text-sm mt-2">Enter a prompt above to generate your first image!</p>
+components/ImageGenerator.tsx:                  onClick={() => setSelectedImage({ imageUrl: img.imageUrl, prompt: img.prompt })}
+components/ImageGenerator.tsx:                    alt={img.prompt}
+components/ImageGenerator.tsx:                <p className="text-sm mb-2 line-clamp-2" style={{ color: 'var(--text-primary)' }}>{img.prompt}</p>
+components/ImageGenerator.tsx:                      handleDownload(img.imageUrl, img.prompt)
+components/ImageGenerator.tsx:                <p className="text-base" style={{ color: 'var(--text-primary)' }}>{selectedImage.prompt}</p>
+components/ImageGenerator.tsx:                  alt={selectedImage.prompt}
+components/ImageGenerator.tsx:                  onClick={() => handleDownload(selectedImage.imageUrl, selectedImage.prompt)}
+components/AiAssistant.tsx:  const [prompt, setPrompt] = useState("")
+components/AiAssistant.tsx:      // Send conversation history along with the new prompt
+components/AiAssistant.tsx:          prompt: userPrompt,
+components/AiAssistant.tsx:          <textarea
+components/AiAssistant.tsx:            value={prompt}
+components/AiAssistant.tsx:                run(prompt)
+components/AiAssistant.tsx:            disabled={loading || prompt.trim().length === 0}
+components/AiAssistant.tsx:            onClick={() => run(prompt)}
+components/AiAssistant.tsx:              if (!loading && prompt.trim().length > 0) {
+app/api/theme/route.ts:    const prompt = body?.prompt || ""
+app/api/theme/route.ts:    // Validate: need either a prompt or image with extracted colors
+app/api/theme/route.ts:    if ((!prompt || prompt.trim().length === 0) && (!imageUrl || extractedColors.length === 0)) {
+app/api/theme/route.ts:      return NextResponse.json({ error: "Missing prompt or image data with extracted colors" }, { status: 400 })
+app/api/theme/route.ts:    // Build the full prompt
+app/api/theme/route.ts:    // Add current user prompt
+app/api/theme/route.ts:    const userRequest = prompt || (extractedColors.length > 0 
+app/api/ai/route.ts:    const prompt = body?.prompt
+app/api/ai/route.ts:    if (typeof prompt !== "string" || prompt.trim().length === 0) {
+app/api/ai/route.ts:      return NextResponse.json({ error: "Missing prompt" }, { status: 400 })
+app/api/ai/route.ts:    // Build the full prompt with context and conversation history
+app/api/ai/route.ts:    // Add current user prompt
+app/api/ai/route.ts:    fullPrompt += `User: ${prompt}\n\nAssistant:`
+app/api/images/generate/route.ts:function generateSVGPlaceholder(type: string, prompt: string, theme?: string): string {
+app/api/images/generate/route.ts:          ${prompt.substring(0, 20)}
+app/api/images/generate/route.ts:    const { prompt, type, theme, useAI = false } = body
+app/api/images/generate/route.ts:    if (typeof prompt !== "string" || prompt.trim().length === 0) {
+app/api/images/generate/route.ts:      return NextResponse.json({ error: "Missing prompt" }, { status: 400 })
+app/api/images/generate/route.ts:      const imageUrl = generateSVGPlaceholder(type || "event", prompt, theme)
+app/api/images/generate/route.ts:      const imageUrl = generateSVGPlaceholder(type || "event", prompt, theme)
+app/api/images/generate/route.ts:      descriptionPrompt = `Create a detailed visual description for a calendar event image: "${prompt}". 
+app/api/images/generate/route.ts:      descriptionPrompt = prompt
+app/api/images/generate/route.ts:    const imageUrl = generateSVGPlaceholder(type || "event", prompt, theme)
+app/api/images/generate/route.ts:    const imageUrl = generateSVGPlaceholder(body?.type || "event", body?.prompt || "", body?.theme)
+app/api/images/generate-gemini/route.ts:    const { prompt } = body
+app/api/images/generate-gemini/route.ts:    if (typeof prompt !== "string" || prompt.trim().length === 0) {
+app/api/images/generate-gemini/route.ts:      return NextResponse.json({ error: "Missing prompt" }, { status: 400 })
+app/api/images/generate-gemini/route.ts:    const result = await generateGeminiImage(prompt)

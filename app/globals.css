@@ -78,56 +78,82 @@ body {
     1px 1px 0 var(--text-3d-color, rgba(0, 0, 0, 0.15));
 }
 
-/* Modern 3D Header Text Effect - Solid Gradient with Theme Colors */
+/* 3D Parallax Header Text Effect - Theme-Aware */
 /* 
- * EDIT THIS CLASS to customize the "AI Calendar" header text style
+ * EDIT THIS CLASS to customize the "Smart Calendar" header text style
  * Location: app/globals.css, lines 82-130
  * 
- * To edit: Change font-size, letter-spacing, colors, or text-shadow values below
+ * To edit: Change font-size, letter-spacing, or depth layers below
  */
 .header-3d-text {
-  font-weight: 900;
-  font-size: 1.5rem;
-  letter-spacing: 0.1em;
+  font-weight: 700;
+  font-size: 1.625rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   position: relative;
   display: inline-block;
-  /* Solid gradient color - crisp rendering without background-clip */
+  --positionX: 0;
+  --positionY: 0;
+  /* Smooth gradient using theme colors */
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  /* Fallback color for browsers that don't support background-clip */
   color: var(--primary-color);
-  /* Maximum crispness - no blur */
+  /* Optimal font rendering for crisp, smooth text */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: geometricPrecision;
-  /* Sharp text shadows with gradient effect - whole pixels only, no blur radius */
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1;
+  /* Transform based on mouse position - very subtle rotation, movement and zoom */
+  transform: 
+    translateX(calc(var(--positionX, 0) * 3px))
+    rotateZ(calc(var(--positionX, 0) * 2deg))
+    scale(calc(1 + var(--positionY, 0) * 0.01));
+  transition: transform 0.2s ease-out;
+  /* Strong shadows for contrast and depth */
   text-shadow: 
-    /* Gradient effect via layered colored shadows */
+    /* Multiple shadow layers for 3D depth effect */
     0 0 0 var(--primary-color),
+    0.5px 0.5px 0 var(--primary-color),
     1px 1px 0 var(--secondary-color),
-    2px 2px 0 var(--secondary-color),
-    /* White inner border - crisp 1px */
-    -1px -1px 0 rgba(255, 255, 255, 1),
-    1px -1px 0 rgba(255, 255, 255, 1),
-    -1px 1px 0 rgba(255, 255, 255, 1),
-    1px 1px 0 rgba(255, 255, 255, 1),
-    /* Primary color border - crisp 2px */
-    -2px -2px 0 var(--primary-color),
-    2px -2px 0 var(--primary-color),
-    -2px 2px 0 var(--primary-color),
-    2px 2px 0 var(--primary-color),
-    /* Secondary color outer border - crisp 3px */
-    -3px -3px 0 var(--secondary-color),
-    3px -3px 0 var(--secondary-color),
-    -3px 3px 0 var(--secondary-color),
-    3px 3px 0 var(--secondary-color),
-    /* Single sharp drop shadow - no blur */
-    0 4px 0 rgba(0, 0, 0, 0.3);
-  /* No transforms or filters */
-  transform: none;
-  filter: none;
-  will-change: auto;
-  /* Clean edges */
-  -webkit-text-stroke: 0 transparent;
-  text-stroke: 0 transparent;
+    1.5px 1.5px 0 var(--secondary-color),
+    2px 2px 0 rgba(0, 0, 0, 0.3),
+    3px 3px 0 rgba(0, 0, 0, 0.2),
+    0 4px 8px rgba(0, 0, 0, 0.4);
+  /* Line height for better spacing */
+  line-height: 1.2;
+  /* Enable 3D transforms */
+  transform-style: preserve-3d;
+}
+
+/* Create multiple text layers for depth effect */
+.header-3d-text::before,
+.header-3d-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 0.3;
+  pointer-events: none;
+  transform: translateZ(-10px);
+}
+
+.header-3d-text::before {
+  transform: translateZ(-5px) scale(1.05);
+  opacity: 0.2;
+}
+
+.header-3d-text::after {
+  transform: translateZ(-15px) scale(1.1);
+  opacity: 0.1;
 }
 
 
@@ -145,15 +171,73 @@ small { font-size: var(--text-size-sm); }
   background: var(--calendar-bg) !important;
 }
 
+/* Agenda View Styles - Ensure text is always legible */
+.rbc-agenda-view {
+  color: var(--text-primary) !important;
+  background: var(--calendar-bg) !important;
+}
+
+.rbc-agenda-view table {
+  color: var(--text-primary) !important;
+  background: var(--calendar-bg) !important;
+}
+
+.rbc-agenda-view table tbody tr {
+  color: var(--text-primary) !important;
+  background: var(--calendar-bg) !important;
+}
+
+.rbc-agenda-view table tbody tr td {
+  color: var(--text-primary) !important;
+  background: var(--calendar-bg) !important;
+  border-color: var(--border-color) !important;
+}
+
+.rbc-agenda-date-cell,
+.rbc-agenda-time-cell {
+  color: var(--text-primary) !important;
+  background: var(--calendar-bg) !important;
+}
+
+.rbc-agenda-event-cell {
+  color: var(--text-primary) !important;
+  background: var(--calendar-bg) !important;
+}
+
+.rbc-agenda-view .rbc-event {
+  color: var(--text-primary) !important;
+  background: var(--event-default-color, var(--primary-color)) !important;
+  border-color: var(--border-color) !important;
+}
+
+.rbc-agenda-view .rbc-event-content {
+  color: var(--text-primary) !important;
+  font-weight: 500;
+}
+
+.rbc-agenda-view .rbc-label {
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+
+.rbc-agenda-view .rbc-addons-dnd {
+  color: var(--text-primary) !important;
+}
+
 .rbc-event {
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 1px 4px;
+  border-radius: 2px;
   cursor: pointer;
   font-weight: 500;
-  font-size: 13px;
-  line-height: 1.4;
+  font-size: 10px;
+  line-height: 1.1;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  min-height: 14px;
+  max-height: 100%;
+  overflow: hidden;
+  margin-bottom: 1px;
 }
+
 
 .rbc-event:hover {
   opacity: 0.85;
@@ -168,6 +252,8 @@ small { font-size: var(--text-size-sm); }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: block;
+  width: 100%;
 }
 
 .rbc-event-content-wrapper {
@@ -236,6 +322,7 @@ small { font-size: var(--text-size-sm); }
 .rbc-agenda-view table {
   font-size: 14px;
   background-color: var(--calendar-bg) !important;
+  color: var(--text-primary) !important;
 }
 
 .rbc-agenda-view table tbody > tr > td {
@@ -243,6 +330,7 @@ small { font-size: var(--text-size-sm); }
   color: var(--text-primary) !important;
   border-color: var(--border-color) !important;
   background-color: var(--calendar-bg) !important;
+  font-weight: 500;
 }
 
 .rbc-agenda-view table thead > tr > th {
@@ -251,6 +339,51 @@ small { font-size: var(--text-size-sm); }
   color: var(--text-primary) !important;
   background-color: var(--surface-color) !important;
   border-color: var(--border-color) !important;
+}
+
+/* Ensure agenda event text is always legible */
+.rbc-agenda-view .rbc-event {
+  color: #ffffff !important;
+  background-color: var(--event-default-color, var(--primary-color)) !important;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin: 2px 0;
+}
+
+.rbc-agenda-view .rbc-event-content {
+  color: #ffffff !important;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.rbc-agenda-view .rbc-agenda-date-cell,
+.rbc-agenda-view .rbc-agenda-time-cell {
+  color: var(--text-primary) !important;
+  font-weight: 500;
+  background-color: var(--calendar-bg) !important;
+}
+
+.rbc-agenda-view .rbc-agenda-event-cell {
+  color: var(--text-primary) !important;
+  background-color: var(--calendar-bg) !important;
+}
+
+/* Ensure all text in agenda rows is legible */
+.rbc-agenda-view table tbody > tr {
+  color: var(--text-primary) !important;
+  background-color: var(--calendar-bg) !important;
+}
+
+.rbc-agenda-view table tbody > tr > td * {
+  color: var(--text-primary) !important;
+}
+
+/* Override for event content to ensure white text on colored backgrounds */
+.rbc-agenda-view table tbody > tr > td .rbc-event,
+.rbc-agenda-view table tbody > tr > td .rbc-event * {
+  color: #ffffff !important;
 }
 
 /* Month view cells */
@@ -274,6 +407,35 @@ small { font-size: var(--text-size-sm); }
 
 .rbc-date-cell {
   color: var(--text-primary) !important;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Make calendar day cells scrollable */
+.rbc-month-view .rbc-date-cell {
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.rbc-month-view .rbc-date-cell::-webkit-scrollbar {
+  width: 4px;
+}
+
+.rbc-month-view .rbc-date-cell::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rbc-month-view .rbc-date-cell::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+.rbc-month-view .rbc-date-cell::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .rbc-date-cell > a {
@@ -306,6 +468,31 @@ small { font-size: var(--text-size-sm); }
 
 .rbc-time-slot {
   border-top-color: var(--border-color) !important;
+}
+
+/* Stylized scrollbar for week and day views */
+.rbc-time-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.rbc-time-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.rbc-time-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+}
+
+.rbc-time-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.rbc-time-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
 }
 
 .rbc-label {

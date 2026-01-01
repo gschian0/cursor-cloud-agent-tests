@@ -76,12 +76,8 @@ export default function EventDetailsModal({
 
   // Poll for image if event doesn't have one yet
   useEffect(() => {
+    // Don't poll if modal is closed, no event, or event already has image
     if (!isOpen || !currentEvent || currentEvent.imageUrl) {
-      console.log('[EventDetailsModal] Skipping poll setup', { 
-        isOpen, 
-        hasEvent: !!currentEvent, 
-        hasImageUrl: !!currentEvent?.imageUrl 
-      })
       return
     }
 
@@ -89,8 +85,16 @@ export default function EventDetailsModal({
 
     let pollCount = 0
     const maxPolls = 30 // Poll for up to 60 seconds (30 * 2s)
+    let intervalId: NodeJS.Timeout | null = null
+    let timeoutId: NodeJS.Timeout | null = null
+    let isPolling = true // Flag to track if polling should continue
 
-    const pollForImage = async () => {
+    const pollForImage = async (): Promise<boolean> => {
+      // Check if we should stop polling
+      if (!isPolling || !isOpen) {
+        return true // Return true to stop
+      }
+
       pollCount++
       console.log(`[EventDetailsModal] Polling for image (attempt ${pollCount}/${maxPolls})`, { eventId: currentEvent.id })
       
@@ -98,17 +102,13 @@ export default function EventDetailsModal({
         const response = await fetch(`/api/events/${currentEvent.id}`)
         if (response.ok) {
           const updatedEvent = await response.json()
-          console.log('[EventDetailsModal] Poll response received', { 
-            eventId: updatedEvent.id,
-            hasImageUrl: !!updatedEvent.imageUrl,
-            imageUrlLength: updatedEvent.imageUrl?.length || 0
-          })
           
+          // Check if event now has image
           if (updatedEvent.imageUrl) {
-            console.log('[EventDetailsModal] Image found! Updating event', { eventId: updatedEvent.id })
+            console.log('[EventDetailsModal] Image found! Updating event and stopping poll', { eventId: updatedEvent.id })
+            isPolling = false
             setCurrentEvent(updatedEvent)
-            // Stop polling once we have the image
-            return true
+            return true // Stop polling
           }
         } else {
           console.warn('[EventDetailsModal] Poll request failed', { 
@@ -120,39 +120,62 @@ export default function EventDetailsModal({
         console.error('[EventDetailsModal] Failed to poll for event image:', error)
       }
       
-      return false
-    }
-
-    // Poll immediately, then every 2 seconds
-    pollForImage().then((hasImage) => {
-      if (hasImage) return // Stop if we got the image immediately
-    })
-
-    const interval = setInterval(async () => {
+      // Check if we've exceeded max polls
       if (pollCount >= maxPolls) {
         console.log('[EventDetailsModal] Max polls reached, stopping', { eventId: currentEvent.id })
-        clearInterval(interval)
-        return
+        isPolling = false
+        return true // Stop polling
       }
       
-      const hasImage = await pollForImage()
-      if (hasImage) {
-        console.log('[EventDetailsModal] Image received, stopping poll', { eventId: currentEvent.id })
-        clearInterval(interval)
+      return false // Continue polling
+    }
+
+    // Initial poll
+    pollForImage().then((shouldStop) => {
+      if (shouldStop) {
+        isPolling = false
+        return
       }
-    }, 2000)
 
-    const timeout = setTimeout(() => {
-      console.log('[EventDetailsModal] Poll timeout reached', { eventId: currentEvent.id })
-      clearInterval(interval)
-    }, 60000) // 60 seconds max
+      // Set up interval polling
+      intervalId = setInterval(async () => {
+        if (!isPolling || !isOpen) {
+          if (intervalId) clearInterval(intervalId)
+          return
+        }
+        
+        const shouldStop = await pollForImage()
+        if (shouldStop && intervalId) {
+          clearInterval(intervalId)
+          intervalId = null
+        }
+      }, 2000)
 
+      // Set up timeout
+      timeoutId = setTimeout(() => {
+        console.log('[EventDetailsModal] Poll timeout reached, stopping', { eventId: currentEvent.id })
+        isPolling = false
+        if (intervalId) {
+          clearInterval(intervalId)
+          intervalId = null
+        }
+      }, 60000) // 60 seconds max
+    })
+
+    // Cleanup function
     return () => {
       console.log('[EventDetailsModal] Cleaning up poll', { eventId: currentEvent.id })
-      clearInterval(interval)
-      clearTimeout(timeout)
+      isPolling = false
+      if (intervalId) {
+        clearInterval(intervalId)
+        intervalId = null
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+        timeoutId = null
+      }
     }
-  }, [isOpen, currentEvent?.id, currentEvent?.imageUrl]) // Use specific properties instead of whole object
+  }, [isOpen, currentEvent?.id]) // Removed currentEvent?.imageUrl from deps to prevent re-triggering
 
   if (!isOpen || !currentEvent) return null
 
@@ -213,6 +236,7 @@ export default function EventDetailsModal({
           location: currentEvent.location || '',
           color: currentEvent.color || '#3b82f6',
           allDay: currentEvent.allDay || false,
+          imageUrl: currentEvent.imageUrl || '',
         }}
         isEdit={true}
       />
